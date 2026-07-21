@@ -1,0 +1,32 @@
+# Maven / Gradle
+target/
+build/
+.gradle/
+.kotlin/
+!**/src/main/**/target/
+!**/src/test/**/target/
+
+# Android
+local.properties
+*.apk
+*.aab
+.cxx/
+/captures
+.externalNativeBuild
+
+# IDEs
+.idea/
+*.iml
+.vscode/
+.settings/
+.classpath
+.project
+nbproject/private/
+
+# Sistema
+.DS_Store
+.directory
+
+# Secretos / entorno local
+*.env
+application-local.properties
