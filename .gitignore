@@ -30,3 +30,6 @@ nbproject/private/
 # Secretos / entorno local
 *.env
 application-local.properties
+
+# Otros
+ImagenesAppPortfolio
