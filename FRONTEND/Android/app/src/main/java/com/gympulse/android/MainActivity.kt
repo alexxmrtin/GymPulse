@@ -14,9 +14,17 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import com.gympulse.android.ui.cuentaajustes.PantallaCuentaAjustes
+import com.gympulse.android.ui.idiomaajustes.PantallaIdiomaAjustes
+import com.gympulse.android.ui.temaajustes.PantallaTemaAjustes
+import com.gympulse.android.ui.unidadesajustes.PantallaUnidadesAjustes
 import com.gympulse.android.ui.ajustes.PantallaAjustes
+import com.gympulse.android.ui.notificacionesajustes.PantallaNotificacionesAjustes
+import com.gympulse.android.ui.perfilajustes.PantallaPerfilAjustes
 import com.gympulse.android.ui.componentes.BarraInferior
+import com.gympulse.android.ui.ejercicios.PantallaEjercicios
 import com.gympulse.android.ui.entrenamiento.PantallaEntrenamiento
+import com.gympulse.android.ui.entrenamientovacio.PantallaEntrenamientoVacio
 import com.gympulse.android.ui.estadisticas.PantallaEstadisticas
 import com.gympulse.android.ui.historial.PantallaHistorial
 import com.gympulse.android.ui.login.PantallaLogin
@@ -104,6 +112,16 @@ class MainActivity : ComponentActivity() {
                         )
 
                         Pantalla.ENTRENAMIENTO -> PantallaEntrenamiento(
+                            onEjercicios = { pantallaActual = Pantalla.EJERCICIOS },
+                            onEntrenamientoVacio = { pantallaActual = Pantalla.ENTRENAMIENTO_VACIO },
+                            modifier = Modifier.padding(innerPadding)
+                        )
+
+                        Pantalla.EJERCICIOS -> PantallaEjercicios(
+                            modifier = Modifier.padding(innerPadding)
+                        )
+
+                        Pantalla.ENTRENAMIENTO_VACIO -> PantallaEntrenamientoVacio(
                             modifier = Modifier.padding(innerPadding)
                         )
 
@@ -122,6 +140,37 @@ class MainActivity : ComponentActivity() {
                         )
 
                         Pantalla.AJUSTES -> PantallaAjustes(
+                            onPerfil = { pantallaActual = Pantalla.PERFIL_AJUSTES },
+                            onCuenta = { pantallaActual = Pantalla.CUENTA_AJUSTES },
+                            onNotificaciones = { pantallaActual = Pantalla.NOTIFICACIONES_AJUSTES },
+                            onIdioma = { pantallaActual = Pantalla.IDIOMA_AJUSTES },
+                            onTema = { pantallaActual = Pantalla.TEMA_AJUSTES },
+                            onUnidades = { pantallaActual = Pantalla.UNIDADES_AJUSTES },
+                            onCerrarSesion = { pantallaActual = Pantalla.LOGIN },
+                            modifier = Modifier.padding(innerPadding)
+                        )
+
+                        Pantalla.PERFIL_AJUSTES -> PantallaPerfilAjustes(
+                            modifier = Modifier.padding(innerPadding)
+                        )
+
+                        Pantalla.CUENTA_AJUSTES -> PantallaCuentaAjustes(
+                            modifier = Modifier.padding(innerPadding)
+                        )
+
+                        Pantalla.NOTIFICACIONES_AJUSTES -> PantallaNotificacionesAjustes(
+                            modifier = Modifier.padding(innerPadding)
+                        )
+
+                        Pantalla.IDIOMA_AJUSTES -> PantallaIdiomaAjustes(
+                            modifier = Modifier.padding(innerPadding)
+                        )
+
+                        Pantalla.TEMA_AJUSTES -> PantallaTemaAjustes(
+                            modifier = Modifier.padding(innerPadding)
+                        )
+
+                        Pantalla.UNIDADES_AJUSTES -> PantallaUnidadesAjustes(
                             modifier = Modifier.padding(innerPadding)
                         )
                     }
@@ -138,5 +187,13 @@ enum class Pantalla(val muestraBarraInferior: Boolean) {
     PERFIL(muestraBarraInferior = true),
     AJUSTES(muestraBarraInferior = true),
     ESTADISTICAS(muestraBarraInferior = true),
-    HISTORIAL(muestraBarraInferior = true)
+    HISTORIAL(muestraBarraInferior = true),
+    EJERCICIOS(muestraBarraInferior = true),
+    ENTRENAMIENTO_VACIO(muestraBarraInferior = true),
+    PERFIL_AJUSTES(muestraBarraInferior = true),
+    CUENTA_AJUSTES(muestraBarraInferior = true),
+    NOTIFICACIONES_AJUSTES(muestraBarraInferior = true),
+    IDIOMA_AJUSTES(muestraBarraInferior = true),
+    TEMA_AJUSTES(muestraBarraInferior = true),
+    UNIDADES_AJUSTES(muestraBarraInferior = true)
 }

@@ -23,11 +23,11 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import com.gympulse.android.R
+import com.gympulse.android.ui.componentes.SeparadorDifuminado
 
 
 private val TAMANO_FOTO = 120.dp
@@ -146,24 +146,6 @@ fun PantallaPerfil(
     }
 }
 
-@Composable
-private fun SeparadorDifuminado() {
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 24.dp)
-            .height(1.dp)
-            .background(
-                Brush.horizontalGradient(
-                    listOf(
-                        Color.Transparent,
-                        Color.White.copy(alpha = 0.25f),
-                        Color.Transparent
-                    )
-                )
-            )
-    )
-}
 
 @Composable
 private fun DatoUsuario(etiqueta: String, valor: String) {
