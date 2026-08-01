@@ -33,6 +33,20 @@
 			<optional>true</optional>
 		</dependency>
 
+		<!-- JPA: el ORM que convierte clases Java en tablas de BD y viceversa. -->
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-data-jpa</artifactId>
+		</dependency>
+
+		<!-- H2: base de datos embebida provisional. No necesita servidor ni configuracion.
+		     Cuando migremos a PostgreSQL se quita esta dependencia y se añade la de PostgreSQL. -->
+		<dependency>
+			<groupId>com.h2database</groupId>
+			<artifactId>h2</artifactId>
+			<scope>runtime</scope>
+		</dependency>
+
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-webmvc-test</artifactId>

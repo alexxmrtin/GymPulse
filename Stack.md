@@ -24,8 +24,8 @@ de Google para Android desde 2019.
 | **Lenguaje** | Java 21 (LTS) |
 | **JDK** | Temurin 21.0.9 (gestionado con SDKMAN) |
 | **Build** | Maven 3.9.16 (instalado con SDKMAN, sin wrapper) |
-| **Dependencias** | Web MVC, Data JPA, PostgreSQL, Validation, Security, Actuator |
-| **Base de datos** | PostgreSQL |
+| **Dependencias** | Web MVC, Data JPA, Validation, Security, Actuator |
+| **Base de datos** | H2 *(provisional — sin servidor, embebida en memoria)* → PostgreSQL en producción |
 | **Ruta** | `BACKEND/` |
 
 Expone una API REST/JSON agnóstica al cliente: Android e iOS consumirían los mismos endpoints.
@@ -63,14 +63,7 @@ cd BACKEND
 mvn spring-boot:run
 ```
 
-> Requiere PostgreSQL en marcha (por JPA + PostgreSQL).
-> Levántalo con Docker:
-> ```bash
-> docker run --name gympulse-db -e POSTGRES_DB=gympulse \
->   -e POSTGRES_USER=gympulse -e POSTGRES_PASSWORD=gympulse \
->   -p 5432:5432 -d postgres:16
-> ```
-> y configura la conexión en `BACKEND/src/main/resources/application.properties`.
+> La BD es H2 embebida: no requiere servidor ni configuración extra.
 
 La API queda disponible en `http://localhost:8080`.
 
