@@ -1,9 +1,11 @@
 package com.gympulse.backend.services;
 
+import java.util.Optional;
+
+import org.springframework.stereotype.Service;
+
 import com.gympulse.backend.models.Usuario;
 import com.gympulse.backend.repositories.UsuarioRepository;
-import org.springframework.stereotype.Service;
-import java.util.Optional;
 
 /*
  @Service le dice a Spring que esta clase contiene logica de negocio.
@@ -21,10 +23,7 @@ public class UsuarioService {
     private final UsuarioRepository usuarioRepository;
 
     /*
-     Inyeccion de dependencias por constructor: Spring detecta que este servicio
-     necesita un UsuarioRepository y se lo pasa solo al crearlo.
-     Es la forma recomendada frente a @Autowired en el campo porque hace
-     las dependencias explicitas y facilita los tests.
+    Le pasamos el repositorio del modelo
     */
     public UsuarioService(UsuarioRepository usuarioRepository) {
         this.usuarioRepository = usuarioRepository;
@@ -59,8 +58,11 @@ public class UsuarioService {
      Solo actualiza los campos editables: no se puede cambiar el email desde aqui.
     */
     public Usuario actualizar(Long id, Usuario datosNuevos) {
-        Usuario usuario = usuarioRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("Usuario no encontrado"));
+        Optional<Usuario> resultado = usuarioRepository.findById(id);
+        if (resultado.isEmpty()) {
+            throw new IllegalArgumentException("Usuario no encontrado");
+        }
+        Usuario usuario = resultado.get();
 
         usuario.setPeso(datosNuevos.getPeso());
         usuario.setAltura(datosNuevos.getAltura());
