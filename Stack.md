@@ -26,6 +26,7 @@ de Google para Android desde 2019.
 | **Build** | Maven 3.9.16 (instalado con SDKMAN, sin wrapper) |
 | **Dependencias** | Web MVC, Data JPA, Validation, Security, Actuator |
 | **Base de datos** | H2 *(provisional — sin servidor, embebida en memoria)* → PostgreSQL en producción |
+| **Logging** | SLF4J + Logback *(incluido en Spring Boot)* — logs en `BACKEND/logs/gympulse.log` |
 | **Ruta** | `BACKEND/` |
 
 Expone una API REST/JSON agnóstica al cliente: Android e iOS consumirían los mismos endpoints.

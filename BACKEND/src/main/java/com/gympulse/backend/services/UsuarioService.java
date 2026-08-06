@@ -2,6 +2,8 @@ package com.gympulse.backend.services;
 
 import java.util.Optional;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import com.gympulse.backend.models.Usuario;
@@ -20,46 +22,37 @@ import com.gympulse.backend.repositories.UsuarioRepository;
 @Service
 public class UsuarioService {
 
+    private static final Logger log = LoggerFactory.getLogger(UsuarioService.class);
+
     private final UsuarioRepository usuarioRepository;
 
-    /*
-    Le pasamos el repositorio del modelo
-    */
     public UsuarioService(UsuarioRepository usuarioRepository) {
         this.usuarioRepository = usuarioRepository;
     }
 
-    /*
-     Registrar un usuario nuevo.
-     Antes de guardar comprueba que el email no este ya en uso:
-     esa es la logica de negocio que no puede vivir en el repositorio.
-    */
     public Usuario registrar(Usuario usuario) {
         if (usuarioRepository.existsByEmail(usuario.getEmail())) {
+            log.warn("Intento de registro con email ya existente: {}", usuario.getEmail());
             throw new IllegalArgumentException("El email ya esta registrado");
         }
+        log.info("Registrando usuario con email: {}", usuario.getEmail());
         return usuarioRepository.save(usuario);
     }
 
-    /*
-     Buscar por id. Devuelve Optional porque el usuario puede no existir.
-     El controlador decide que respuesta HTTP mandar segun este resultado.
-    */
     public Optional<Usuario> buscarPorId(Long id) {
+        log.debug("Buscando usuario con id: {}", id);
         return usuarioRepository.findById(id);
     }
 
     public Optional<Usuario> buscarPorEmail(String email) {
+        log.debug("Buscando usuario con email: {}", email);
         return usuarioRepository.findByEmail(email);
     }
 
-    /*
-     Actualizar los datos de un usuario existente.
-     Solo actualiza los campos editables: no se puede cambiar el email desde aqui.
-    */
     public Usuario actualizar(Long id, Usuario datosNuevos) {
         Optional<Usuario> resultado = usuarioRepository.findById(id);
         if (resultado.isEmpty()) {
+            log.warn("Intento de actualizar usuario inexistente con id: {}", id);
             throw new IllegalArgumentException("Usuario no encontrado");
         }
         Usuario usuario = resultado.get();
@@ -68,10 +61,12 @@ public class UsuarioService {
         usuario.setAltura(datosNuevos.getAltura());
         usuario.setFechaNacimiento(datosNuevos.getFechaNacimiento());
 
+        log.info("Usuario {} actualizado", id);
         return usuarioRepository.save(usuario);
     }
 
     public void eliminar(Long id) {
+        log.info("Eliminando usuario con id: {}", id);
         usuarioRepository.deleteById(id);
     }
 }
