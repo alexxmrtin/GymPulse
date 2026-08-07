@@ -6,6 +6,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
+import com.gympulse.backend.core.ManejoErrores.exceptions.ConflictoException;
+import com.gympulse.backend.core.ManejoErrores.exceptions.RecursoNoEncontradoException;
 import com.gympulse.backend.models.Usuario;
 import com.gympulse.backend.repositories.UsuarioRepository;
 
@@ -33,7 +35,7 @@ public class UsuarioService {
     public Usuario registrar(Usuario usuario) {
         if (usuarioRepository.existsByEmail(usuario.getEmail())) {
             log.warn("Intento de registro con email ya existente: {}", usuario.getEmail());
-            throw new IllegalArgumentException("El email ya esta registrado");
+            throw new ConflictoException("El email ya esta registrado");
         }
         log.info("Registrando usuario con email: {}", usuario.getEmail());
         return usuarioRepository.save(usuario);
@@ -53,7 +55,7 @@ public class UsuarioService {
         Optional<Usuario> resultado = usuarioRepository.findById(id);
         if (resultado.isEmpty()) {
             log.warn("Intento de actualizar usuario inexistente con id: {}", id);
-            throw new IllegalArgumentException("Usuario no encontrado");
+            throw new RecursoNoEncontradoException("Usuario no encontrado");
         }
         Usuario usuario = resultado.get();
 

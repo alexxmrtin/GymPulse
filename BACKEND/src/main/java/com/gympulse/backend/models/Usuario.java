@@ -20,18 +20,11 @@ import jakarta.persistence.Table;
 @Table(name = "usuarios")
 public class Usuario {
 
-    /*
-     @Id marca la clave primaria.
-     @GeneratedValue con IDENTITY delega en la BD la generacion del id (autoincremento).
-    */
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    /*
-     @Column permite configurar la columna: nullable = false equivale a NOT NULL en SQL,
-     unique = true añade una restriccion de unicidad.
-    */
     @Column(nullable = false, unique = true)
     private String username;
 
@@ -45,11 +38,7 @@ public class Usuario {
     private Double altura;
     private LocalDate fechaNacimiento;
 
-    /*
-     @OneToMany: un usuario tiene muchos entrenamientos.
-     mappedBy = "usuario" le dice a Hibernate que la columna de union esta en Entrenamiento,
-     no aqui. cascade = ALL propaga las operaciones: si borras un usuario se borran sus entrenos.
-    */
+
     @OneToMany(mappedBy = "usuario", cascade = CascadeType.ALL)
     private List<Entrenamiento> entrenamientos;
 
