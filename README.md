@@ -30,6 +30,9 @@ GymPulse/
 | Contraseñas | BCrypt (spring-security-crypto) |
 | Logging | SLF4J + Logback |
 
+> **[BACKEND/funcionamientoBackend.md](BACKEND/funcionamientoBackend.md)** explica el backend entero: el
+> recorrido de una petición, qué hace cada clase y cómo funciona la seguridad.
+
 ### Estructura de paquetes
 
 ```

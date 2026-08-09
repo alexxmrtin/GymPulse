@@ -81,7 +81,7 @@ class MainActivity : ComponentActivity() {
             GymPulseTheme {
 
                 //Por defecto enseña la pagina PantallaLogin
-                var pantallaActual by remember { mutableStateOf(Pantalla.PERFIL) }
+                var pantallaActual by remember { mutableStateOf(Pantalla.LOGIN) }
 
                 Scaffold(
                     modifier = Modifier.fillMaxSize(),
