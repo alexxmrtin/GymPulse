@@ -47,6 +47,35 @@
 			<scope>runtime</scope>
 		</dependency>
 
+		<!-- Spring Security. En cuanto esta en el classpath cierra TODOS los endpoints por
+		     defecto: quien decide que se abre y que no es el SecurityFilterChain de SeguridadConfig. -->
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-security</artifactId>
+		</dependency>
+
+		<!-- Trae dos cosas: la libreria Nimbus para firmar y leer JWT (fase 2), y el soporte
+		     para validarlos automaticamente en cada peticion (fase 3). -->
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-oauth2-resource-server</artifactId>
+		</dependency>
+
+		<!-- Consola web de H2 para inspeccionar la BD. En Spring Boot 4 vive en su propio
+		     modulo, ya no viene con el autoconfigure. Solo desarrollo. -->
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-h2console</artifactId>
+			<scope>runtime</scope>
+		</dependency>
+
+		<!-- Solo las utilidades de cifrado de Spring Security (BCrypt), no el starter completo:
+		     el starter bloquearia todos los endpoints hasta configurar la autenticacion. -->
+		<dependency>
+			<groupId>org.springframework.security</groupId>
+			<artifactId>spring-security-crypto</artifactId>
+		</dependency>
+
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-webmvc-test</artifactId>

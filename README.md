@@ -26,7 +26,8 @@ GymPulse/
 | Lenguaje | Java 21 (LTS) |
 | JDK | Temurin 21.0.9 (SDKMAN) |
 | Build | Maven 3.9.16 (SDKMAN) |
-| Base de datos | H2 embebida *(provisional)* → PostgreSQL en producción |
+| Base de datos | H2 embebida en archivo *(provisional)* → PostgreSQL en producción |
+| Contraseñas | BCrypt (spring-security-crypto) |
 | Logging | SLF4J + Logback |
 
 ### Estructura de paquetes
@@ -37,10 +38,15 @@ com.gympulse.backend/
 ├── services/       Lógica de negocio — validaciones y reglas de la app
 ├── repositories/   Acceso a datos — interfaces JPA generadas por Spring
 ├── models/         Entidades JPA — mapean a tablas de la base de datos
-├── core/           Configuración global (CORS...)
+├── dtos/           Records que entran y salen por la API — nunca se exponen las entidades
+├── core/           Configuración global (CORS, BCrypt, manejo de errores)
 ├── middlewares/    Filtros e interceptores (pendiente: JWT)
-└── helpers/        Utilidades generales
+└── helpers/        Mapeador entidad↔DTO y validaciones
 ```
+
+Las entidades JPA no salen nunca en las respuestas: se convierten a DTO en la capa de servicio.
+Así se evita el ciclo `Usuario → entrenamientos → usuario`, no se filtra el hash de la contraseña
+y las colecciones perezosas se leen dentro de la transacción.
 
 ### Modelo de datos
 
@@ -62,6 +68,7 @@ usuarios
 | Método | Ruta | Descripción |
 |---|---|---|
 | POST | `/usuario` | Registrar usuario |
+| POST | `/usuario/login` | Comprobar email + contraseña y devolver un JWT (401 si no cuadran) |
 | GET | `/usuario/{id}` | Obtener usuario por id |
 | PUT | `/usuario/{id}` | Actualizar usuario |
 | DELETE | `/usuario/{id}` | Eliminar usuario |
@@ -69,25 +76,84 @@ usuarios
 | GET | `/ejercicio` | Listar todos / filtrar por `?nombre=` o `?grupoMuscular=` |
 | GET | `/ejercicio/{id}` | Obtener ejercicio por id |
 | DELETE | `/ejercicio/{id}` | Eliminar ejercicio |
-| POST | `/entrenamiento` | Crear entrenamiento |
-| GET | `/entrenamiento/{id}` | Obtener entrenamiento por id |
-| GET | `/entrenamiento?usuarioId=` | Entrenamientos de un usuario (orden descendente) |
-| DELETE | `/entrenamiento/{id}` | Eliminar entrenamiento |
-| POST | `/serie` | Crear serie |
-| GET | `/serie?entrenamientoId=` | Series de un entrenamiento |
-| GET | `/serie?ejercicioId=` | Series de un ejercicio |
-| DELETE | `/serie/{id}` | Eliminar serie |
+| POST | `/entrenamiento` | Crear entrenamiento (el dueño sale del token) |
+| GET | `/entrenamiento` | Mis entrenamientos (orden descendente) |
+| GET | `/entrenamiento/{id}` | Obtener un entrenamiento propio |
+| DELETE | `/entrenamiento/{id}` | Eliminar un entrenamiento propio |
+| POST | `/serie` | Crear serie en un entrenamiento propio |
+| GET | `/serie?entrenamientoId=` | Series de un entrenamiento propio |
+| GET | `/serie?ejercicioId=` | Mis series de un ejercicio (progresión) |
+| DELETE | `/serie/{id}` | Eliminar una serie propia |
+
+Salvo `POST /usuario` y `POST /usuario/login`, **todos exigen** la cabecera
+`Authorization: Bearer <token>`. Los endpoints de usuario solo operan sobre la propia cuenta.
 
 ### Arrancar el backend
 
+La primera vez hay que crear el archivo de secretos, que no está en git:
+
 ```bash
 cd BACKEND
+cp .env.example .env
+echo "JWT_SECRETO=$(openssl rand -base64 48)" > .env
+```
+
+Y ya:
+
+```bash
 mvn spring-boot:run
 ```
 
+> Si falta el `.env` la app no arranca y avisa con `Could not resolve placeholder 'JWT_SECRETO'`.
+> En producción no se usa `.env`: la variable se define en el entorno del servidor.
+
 La API queda disponible en `http://localhost:8080`.
 
-> La BD es H2 embebida — no requiere servidor ni configuración extra. Los logs se escriben en `BACKEND/logs/gympulse.log`.
+> La BD es H2 embebida — no requiere servidor ni configuración extra. Los datos viven en
+> `BACKEND/data/gympulse.mv.db` y se pueden inspeccionar en `http://localhost:8080/h2-console`
+> (JDBC URL `jdbc:h2:file:./data/gympulse`, usuario `sa`, sin contraseña).
+> Los logs se escriben en `BACKEND/logs/gympulse.log`.
+
+### Autenticación
+
+`POST /usuario/login` devuelve un JWT firmado con HS256:
+
+```json
+{
+  "token": "eyJhbGciOiJIUzI1NiJ9...",
+  "tipo": "Bearer",
+  "expiraEnSegundos": 43200,
+  "usuario": { "id": 1, "username": "alex", "...": "..." }
+}
+```
+
+Dentro del token van el emisor, el id del usuario (`sub`), el `username` y las fechas de emisión
+y caducidad. La clave de firma sale de `JWT_SECRETO` (archivo `BACKEND/.env` en local, variable
+de entorno en producción) y la duración de `gympulse.jwt.duracion-minutos`.
+
+A partir de ahí, cada petición manda el token:
+
+```
+Authorization: Bearer eyJhbGciOiJIUzI1NiJ9...
+```
+
+Spring valida la firma y la caducidad en un filtro, antes de llegar al controlador, y el id del
+usuario se saca del token (nunca de un parámetro), así que nadie puede pedir datos ajenos
+cambiando un id en la URL. Un entrenamiento o una serie de otro usuario responden **404 y no
+403**, para no confirmar siquiera que ese id existe.
+
+### Códigos de error
+
+Todos los errores devuelven el mismo JSON (`timestamp`, `codigo`, `mensaje`):
+
+| Código | Cuándo |
+|---|---|
+| 400 | Falta un campo obligatorio |
+| 401 | Credenciales incorrectas, o token ausente / caducado / manipulado |
+| 403 | Intentas operar sobre la cuenta de otro usuario |
+| 404 | El recurso no existe, o es de otro usuario |
+| 409 | Email o username ya registrados, o se borra algo que aún está referenciado |
+| 500 | Cualquier otro error |
 
 ---
 
@@ -122,8 +188,12 @@ Abrir `FRONTEND/Android/` como proyecto y ejecutar en emulador o dispositivo fí
 
 ## Pendiente
 
-- [ ] Manejo de errores global (backend)
-- [ ] Autenticación OAUTH 2.0 + JWT
+- [x] Manejo de errores global (backend)
+- [x] DTOs y contraseñas cifradas
+- [x] Autenticación con JWT y API cerrada
+- [ ] Refresh tokens (ahora el token dura 12 h y al caducar toca volver a hacer login)
+- [ ] Validación con `spring-boot-starter-validation` en vez de comprobaciones manuales
+- [ ] Login con Google (OAuth 2.0)
 - [ ] Migración a PostgreSQL
 - [ ] Desarrollo de frontend al completo
 - [ ] Conectar frontend Android con la API

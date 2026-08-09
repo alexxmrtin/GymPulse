@@ -1,7 +1,8 @@
 package com.gympulse.backend.controllers;
-import java.util.Optional;
 
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -11,11 +12,17 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.gympulse.backend.models.Usuario;
+import com.gympulse.backend.dtos.ActualizarUsuarioDTO;
+import com.gympulse.backend.dtos.LoginDTO;
+import com.gympulse.backend.dtos.RegistroUsuarioDTO;
+import com.gympulse.backend.dtos.SesionDTO;
+import com.gympulse.backend.dtos.UsuarioDTO;
+import com.gympulse.backend.helpers.UsuarioAutenticado;
 import com.gympulse.backend.services.UsuarioService;
 
 /*
 POST /usuario               -> registrar un usuario nuevo
+POST /usuario/login         -> comprobar email y contrasena y devolver el token JWT
 GET  /usuario/{id}          -> obtener un usuario por id
 PUT  /usuario/{id}          -> actualizar datos del usuario
 DELETE /usuario/{id}        -> eliminar un usuario
@@ -39,9 +46,13 @@ public class UsuarioController {
      ResponseEntity permite controlar el codigo HTTP de la respuesta.
     */
     @PostMapping
-    public ResponseEntity<Usuario> registrar(@RequestBody Usuario usuario) {
-        Usuario nuevo = usuarioService.registrar(usuario);
-        return ResponseEntity.ok(nuevo);
+    public ResponseEntity<UsuarioDTO> registrar(@RequestBody RegistroUsuarioDTO datos) {
+        return ResponseEntity.ok(usuarioService.registrar(datos));
+    }
+
+    @PostMapping("/login")
+    public ResponseEntity<SesionDTO> login(@RequestBody LoginDTO credenciales) {
+        return ResponseEntity.ok(usuarioService.autenticar(credenciales));
     }
 
     /*
@@ -50,14 +61,8 @@ public class UsuarioController {
      Si el usuario existe devuelve 200 con el objeto; si no, devuelve 404.
     */
     @GetMapping("/{id}")
-    public ResponseEntity<Usuario> buscarPorId(@PathVariable Long id) {
-        Optional<Usuario> usuario = usuarioService.buscarPorId(id);
-
-        if (usuario.isEmpty()) {
-            return ResponseEntity.notFound().build();
-        }
-
-        return ResponseEntity.ok(usuario.get());
+    public ResponseEntity<UsuarioDTO> buscarPorId(@PathVariable Long id, @AuthenticationPrincipal Jwt token) {
+        return ResponseEntity.ok(usuarioService.buscarPorId(id, UsuarioAutenticado.id(token)));
     }
 
     /*
@@ -65,15 +70,10 @@ public class UsuarioController {
      Actualiza los datos del usuario. Devuelve 404 si no existe.
     */
     @PutMapping("/{id}")
-    public ResponseEntity<Usuario> actualizar(@PathVariable Long id, @RequestBody Usuario datosNuevos) {
-        Optional<Usuario> existente = usuarioService.buscarPorId(id);
-
-        if (existente.isEmpty()) {
-            return ResponseEntity.notFound().build();
-        }
-
-        Usuario actualizado = usuarioService.actualizar(id, datosNuevos);
-        return ResponseEntity.ok(actualizado);
+    public ResponseEntity<UsuarioDTO> actualizar(@PathVariable Long id,
+            @RequestBody ActualizarUsuarioDTO datosNuevos,
+            @AuthenticationPrincipal Jwt token) {
+        return ResponseEntity.ok(usuarioService.actualizar(id, datosNuevos, UsuarioAutenticado.id(token)));
     }
 
     /*
@@ -81,8 +81,8 @@ public class UsuarioController {
      Elimina el usuario. Devuelve 204 (exito sin contenido).
     */
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> eliminar(@PathVariable Long id) {
-        usuarioService.eliminar(id);
+    public ResponseEntity<Void> eliminar(@PathVariable Long id, @AuthenticationPrincipal Jwt token) {
+        usuarioService.eliminar(id, UsuarioAutenticado.id(token));
         return ResponseEntity.noContent().build();
     }
 }

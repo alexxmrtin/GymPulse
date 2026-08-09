@@ -11,4 +11,7 @@ public interface SerieRepository extends JpaRepository<Serie, Long> {
 
     // SELECT * FROM series WHERE ejercicio_id = ?
     List<Serie> findByEjercicioId(Long ejercicioId);
+
+    // Las series de un ejercicio pero solo las de un usuario: recorre serie -> entrenamiento -> usuario
+    List<Serie> findByEjercicioIdAndEntrenamientoUsuarioId(Long ejercicioId, Long usuarioId);
 }

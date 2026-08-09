@@ -1,17 +1,20 @@
 package com.gympulse.backend.controllers;
 
-import com.gympulse.backend.models.Entrenamiento;
+import com.gympulse.backend.dtos.CrearEntrenamientoDTO;
+import com.gympulse.backend.dtos.EntrenamientoDTO;
+import com.gympulse.backend.helpers.UsuarioAutenticado;
 import com.gympulse.backend.services.EntrenamientoService;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
 import java.util.List;
-import java.util.Optional;
 
 /*
-POST   /entrenamiento               -> crear un entrenamiento
-GET    /entrenamiento/{id}          -> obtener un entrenamiento por id
-GET    /entrenamiento?usuarioId=1   -> obtener todos los entrenamientos de un usuario
-DELETE /entrenamiento/{id}          -> eliminar un entrenamiento
+POST   /entrenamiento               -> crear un entrenamiento para el usuario del token
+GET    /entrenamiento               -> obtener los entrenamientos del usuario del token
+GET    /entrenamiento/{id}          -> obtener un entrenamiento propio por id
+DELETE /entrenamiento/{id}          -> eliminar un entrenamiento propio
 */
 
 @RestController
@@ -25,31 +28,25 @@ public class EntrenamientoController {
     }
 
     @PostMapping
-    public ResponseEntity<Entrenamiento> crear(@RequestBody Entrenamiento entrenamiento) {
-        Entrenamiento nuevo = entrenamientoService.crear(entrenamiento);
-        return ResponseEntity.ok(nuevo);
+    public ResponseEntity<EntrenamientoDTO> crear(@RequestBody CrearEntrenamientoDTO datos,
+            @AuthenticationPrincipal Jwt token) {
+        return ResponseEntity.ok(entrenamientoService.crear(datos, UsuarioAutenticado.id(token)));
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<Entrenamiento> buscarPorId(@PathVariable Long id) {
-        Optional<Entrenamiento> entrenamiento = entrenamientoService.buscarPorId(id);
-
-        if (entrenamiento.isEmpty()) {
-            return ResponseEntity.notFound().build();
-        }
-
-        return ResponseEntity.ok(entrenamiento.get());
+    public ResponseEntity<EntrenamientoDTO> buscarPorId(@PathVariable Long id,
+            @AuthenticationPrincipal Jwt token) {
+        return ResponseEntity.ok(entrenamientoService.buscarPorId(id, UsuarioAutenticado.id(token)));
     }
 
     @GetMapping
-    public ResponseEntity<List<Entrenamiento>> buscarPorUsuario(@RequestParam Long usuarioId) {
-        List<Entrenamiento> entrenamientos = entrenamientoService.buscarPorUsuario(usuarioId);
-        return ResponseEntity.ok(entrenamientos);
+    public ResponseEntity<List<EntrenamientoDTO>> buscarPropios(@AuthenticationPrincipal Jwt token) {
+        return ResponseEntity.ok(entrenamientoService.buscarPropios(UsuarioAutenticado.id(token)));
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> eliminar(@PathVariable Long id) {
-        entrenamientoService.eliminar(id);
+    public ResponseEntity<Void> eliminar(@PathVariable Long id, @AuthenticationPrincipal Jwt token) {
+        entrenamientoService.eliminar(id, UsuarioAutenticado.id(token));
         return ResponseEntity.noContent().build();
     }
 }

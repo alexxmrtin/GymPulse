@@ -5,12 +5,15 @@ import java.util.Map;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
+import com.gympulse.backend.core.ManejoErrores.exceptions.AccesoProhibidoException;
 import com.gympulse.backend.core.ManejoErrores.exceptions.ConflictoException;
+import com.gympulse.backend.core.ManejoErrores.exceptions.CredencialesInvalidasException;
 import com.gympulse.backend.core.ManejoErrores.exceptions.RecursoNoEncontradoException;
 
 /*
@@ -41,6 +44,30 @@ public class ManejadorErrores {
         return ResponseEntity
                 .status(HttpStatus.CONFLICT)
                 .body(respuesta(409, ex.getMessage()));
+    }
+
+    @ExceptionHandler(CredencialesInvalidasException.class)
+    public ResponseEntity<Map<String, Object>> manejarCredencialesInvalidas(CredencialesInvalidasException ex) {
+        log.warn("Credenciales invalidas: {}", ex.getMessage());
+        return ResponseEntity
+                .status(HttpStatus.UNAUTHORIZED)
+                .body(respuesta(401, ex.getMessage()));
+    }
+
+    @ExceptionHandler(AccesoProhibidoException.class)
+    public ResponseEntity<Map<String, Object>> manejarAccesoProhibido(AccesoProhibidoException ex) {
+        log.warn("Acceso prohibido: {}", ex.getMessage());
+        return ResponseEntity
+                .status(HttpStatus.FORBIDDEN)
+                .body(respuesta(403, ex.getMessage()));
+    }
+
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    public ResponseEntity<Map<String, Object>> manejarIntegridad(DataIntegrityViolationException ex) {
+        log.warn("Violacion de integridad en la BD: {}", ex.getMessage());
+        return ResponseEntity
+                .status(HttpStatus.CONFLICT)
+                .body(respuesta(409, "La operacion entra en conflicto con datos ya existentes"));
     }
 
     @ExceptionHandler(IllegalArgumentException.class)

@@ -1,11 +1,11 @@
 package com.gympulse.backend.controllers;
 
-import com.gympulse.backend.models.Ejercicio;
+import com.gympulse.backend.dtos.CrearEjercicioDTO;
+import com.gympulse.backend.dtos.EjercicioDTO;
 import com.gympulse.backend.services.EjercicioService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import java.util.List;
-import java.util.Optional;
 
 /*
 POST   /ejercicio                        -> crear un ejercicio
@@ -27,13 +27,12 @@ public class EjercicioController {
     }
 
     @PostMapping
-    public ResponseEntity<Ejercicio> crear(@RequestBody Ejercicio ejercicio) {
-        Ejercicio nuevo = ejercicioService.crear(ejercicio);
-        return ResponseEntity.ok(nuevo);
+    public ResponseEntity<EjercicioDTO> crear(@RequestBody CrearEjercicioDTO datos) {
+        return ResponseEntity.ok(ejercicioService.crear(datos));
     }
 
     @GetMapping
-    public ResponseEntity<List<Ejercicio>> buscar(
+    public ResponseEntity<List<EjercicioDTO>> buscar(
             @RequestParam(required = false) String nombre,
             @RequestParam(required = false) String grupoMuscular) {
 
@@ -49,14 +48,8 @@ public class EjercicioController {
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<Ejercicio> buscarPorId(@PathVariable Long id) {
-        Optional<Ejercicio> ejercicio = ejercicioService.buscarPorId(id);
-
-        if (ejercicio.isEmpty()) {
-            return ResponseEntity.notFound().build();
-        }
-
-        return ResponseEntity.ok(ejercicio.get());
+    public ResponseEntity<EjercicioDTO> buscarPorId(@PathVariable Long id) {
+        return ResponseEntity.ok(ejercicioService.buscarPorId(id));
     }
 
     @DeleteMapping("/{id}")

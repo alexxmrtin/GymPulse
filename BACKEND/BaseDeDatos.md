@@ -25,7 +25,7 @@ Cada serie apunta a un ejercicio y guarda el peso y las repeticiones de esa seri
 | id                | BIGINT      | PK, autoincremento|
 | username          | VARCHAR     | NOT NULL, UNIQUE  |
 | email             | VARCHAR     | NOT NULL, UNIQUE  |
-| password          | VARCHAR     | NOT NULL          |
+| password          | VARCHAR     | NOT NULL, hash BCrypt |
 | peso              | DOUBLE      |                   |
 | altura            | DOUBLE      |                   |
 | fecha_nacimiento  | DATE        |                   |
@@ -69,5 +69,6 @@ Cada serie apunta a un ejercicio y guarda el peso y las repeticiones de esa seri
 ## Notas
 
 - Las tablas las genera Hibernate automáticamente al arrancar la app (`ddl-auto=update`).
-- La BD actual es H2 (embebida, provisional). La migración a PostgreSQL solo requiere cambiar el driver y la URL en `application.properties`.
+- La BD actual es H2 embebida en archivo (`BACKEND/data/gympulse.mv.db`, ignorado por git): los datos sobreviven a los reinicios. La migración a PostgreSQL solo requiere cambiar el driver y la URL en `application.properties`.
+- La contraseña nunca se guarda en claro ni sale por la API: se cifra con BCrypt al registrar y el login compara el hash.
 - No borrar un ejercicio borra sus series históricas: `Ejercicio` no tiene `cascade = ALL` intencionalmente.
