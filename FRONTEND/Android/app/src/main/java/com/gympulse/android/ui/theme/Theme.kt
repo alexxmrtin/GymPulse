@@ -1,23 +1,47 @@
 package com.gympulse.android.ui.theme
 
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Shapes
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.unit.dp
 
-// Paleta de la app. background es el fondo de las pantallas y surface el de los elementos que van encima (tarjetas, barras).
-// Los "on..." son el color del contenido que va SOBRE cada uno: onBackground es el color del texto sobre el fondo.
 private val EsquemaOscuro = darkColorScheme(
-    primary = Purple80,
-    secondary = PurpleGrey80,
-    tertiary = Pink80,
-    background = Color.Black,
-    surface = Color.Black,
-    onBackground = Color.White,
-    onSurface = Color.White
+    primary = Morado,
+    onPrimary = MoradoProfundo,
+    primaryContainer = MoradoContenedor,
+    onPrimaryContainer = Morado,
+    secondary = MoradoGris,
+    tertiary = Rosa,
+    background = Negro,
+    onBackground = Blanco,
+    surface = Negro,
+    onSurface = Blanco,
+    surfaceVariant = Superficie2,
+    onSurfaceVariant = TextoSecundario,
+    surfaceContainerLowest = Negro,
+    surfaceContainerLow = Superficie1,
+    surfaceContainer = Superficie1,
+    surfaceContainerHigh = Superficie2,
+    surfaceContainerHighest = Superficie3,
+    surfaceBright = Superficie3,
+    outline = TextoTenue,
+    outlineVariant = Superficie3,
+    error = Rojo,
+    onError = Blanco,
+    errorContainer = RojoContenedor,
+    onErrorContainer = Rojo
 )
 
-// KOTLIN: content es de tipo @Composable () -> Unit, es decir, una funcion que no recibe nada y no devuelve nada. Al ser el ultimo parametro, quien llame a GymPulseTheme puede pasarla entre llaves.
+private val Formas = Shapes(
+    extraSmall = RoundedCornerShape(8.dp),
+    small = RoundedCornerShape(12.dp),
+    medium = RoundedCornerShape(16.dp),
+    large = RoundedCornerShape(24.dp),
+    extraLarge = RoundedCornerShape(32.dp)
+)
+
 @Composable
 fun GymPulseTheme(
     content: @Composable () -> Unit
@@ -25,6 +49,7 @@ fun GymPulseTheme(
     MaterialTheme(
         colorScheme = EsquemaOscuro,
         typography = Typography,
+        shapes = Formas,
         content = content
     )
 }

@@ -42,6 +42,12 @@ class UsuarioRepositorio(
         api.actualizarUsuario(id, ActualizarUsuarioPeticion(peso, altura, fechaNacimiento))
     }
 
+    suspend fun eliminarMiCuenta(): Result<Unit> = runCatching {
+        val id = almacen.usuarioId ?: error("No hay sesion iniciada")
+        api.eliminarUsuario(id)
+        almacen.invalidar()
+    }
+
     fun cerrarSesion() {
         almacen.invalidar()
     }

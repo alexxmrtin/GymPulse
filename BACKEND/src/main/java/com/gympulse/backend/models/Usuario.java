@@ -1,5 +1,6 @@
 package com.gympulse.backend.models;
 
+import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
 
@@ -37,6 +38,7 @@ public class Usuario {
     private Double peso;
     private Double altura;
     private LocalDate fechaNacimiento;
+    private Instant fotoActualizadaEn;
 
 
     @OneToMany(mappedBy = "usuario", cascade = CascadeType.ALL)
@@ -64,6 +66,9 @@ public class Usuario {
 
     public LocalDate getFechaNacimiento() { return fechaNacimiento; }
     public void setFechaNacimiento(LocalDate fechaNacimiento) { this.fechaNacimiento = fechaNacimiento; }
+
+    public Instant getFotoActualizadaEn() { return fotoActualizadaEn; }
+    public void setFotoActualizadaEn(Instant fotoActualizadaEn) { this.fotoActualizadaEn = fotoActualizadaEn; }
 
     public List<Entrenamiento> getEntrenamientos() { return entrenamientos; }
     public void setEntrenamientos(List<Entrenamiento> entrenamientos) { this.entrenamientos = entrenamientos; }

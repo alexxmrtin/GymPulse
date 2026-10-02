@@ -18,6 +18,8 @@ import kotlinx.coroutines.launch
 
 private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "sesion")
 
+enum class EstadoSesion { CARGANDO, ACTIVA, INACTIVA }
+
 class AlmacenSesion(private val context: Context) {
 
     private val claveToken = stringPreferencesKey("token")
@@ -32,20 +34,20 @@ class AlmacenSesion(private val context: Context) {
     var usuarioId: Long? = null
         private set
 
-    private val _sesionActiva = MutableStateFlow(false)
-    val sesionActiva: StateFlow<Boolean> = _sesionActiva.asStateFlow()
+    private val _estado = MutableStateFlow(EstadoSesion.CARGANDO)
+    val estado: StateFlow<EstadoSesion> = _estado.asStateFlow()
 
     suspend fun cargar() {
         val guardado = context.dataStore.data.first()
         tokenEnMemoria = guardado[claveToken]
         usuarioId = guardado[claveUsuarioId]
-        _sesionActiva.value = tokenEnMemoria != null
+        _estado.value = if (tokenEnMemoria != null) EstadoSesion.ACTIVA else EstadoSesion.INACTIVA
     }
 
     suspend fun guardar(token: String, usuarioId: Long) {
         tokenEnMemoria = token
         this.usuarioId = usuarioId
-        _sesionActiva.value = true
+        _estado.value = EstadoSesion.ACTIVA
         context.dataStore.edit { preferencias ->
             preferencias[claveToken] = token
             preferencias[claveUsuarioId] = usuarioId
@@ -57,7 +59,7 @@ class AlmacenSesion(private val context: Context) {
     fun invalidar() {
         tokenEnMemoria = null
         usuarioId = null
-        _sesionActiva.value = false
+        _estado.value = EstadoSesion.INACTIVA
         ambito.launch {
             context.dataStore.edit { it.clear() }
         }

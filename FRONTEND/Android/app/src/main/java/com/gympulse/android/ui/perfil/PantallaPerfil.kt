@@ -1,165 +1,229 @@
 package com.gympulse.android.ui.perfil
 
-import androidx.compose.foundation.background
+import android.net.Uri
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Button
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.rounded.ShowChart
+import androidx.compose.material.icons.rounded.Edit
+import androidx.compose.material.icons.rounded.History
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import com.gympulse.android.R
-import com.gympulse.android.ui.componentes.SeparadorDifuminado
-
-
-private val TAMANO_FOTO = 120.dp
-private val GRIS_APAGADO = Color.White.copy(alpha = 0.6f)
-
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.gympulse.android.data.perfil.urlFoto
+import com.gympulse.android.ui.comun.LocalUnidadPeso
+import com.gympulse.android.ui.comun.edadDesde
+import com.gympulse.android.ui.comun.formatearNumero
+import com.gympulse.android.ui.comun.formatearPeso
+import com.gympulse.android.ui.comun.rachaSemanas
+import com.gympulse.android.ui.componentes.BotonSecundario
+import com.gympulse.android.ui.componentes.ContenidoSegunEstado
+import com.gympulse.android.ui.componentes.RefrescoDeslizable
+import com.gympulse.android.ui.componentes.EsqueletoPantalla
+import com.gympulse.android.ui.componentes.Tarjeta
+import com.gympulse.android.ui.componentes.TarjetaDato
+import com.gympulse.android.ui.componentes.TarjetaEntrenamiento
+import com.gympulse.android.ui.componentes.TituloSeccion
+import java.time.YearMonth
 
 @Composable
 fun PantallaPerfil(
-    modifier: Modifier = Modifier,
-    onEditarFoto: () -> Unit = {},
-    onEstadisticas: () -> Unit = {},
-    onHistorial: () -> Unit = {}
+    onEditarPerfil: () -> Unit,
+    onEstadisticas: () -> Unit,
+    onHistorial: () -> Unit,
+    onVerEntrenamiento: (Long) -> Unit,
+    viewModel: PerfilViewModel = viewModel(factory = PerfilViewModel.Fabrica)
 ) {
-    Column(modifier = modifier.padding(24.dp)) {
-        Text(
-            text = "Alexxmrtin", //Esta hardcodeado, en el futuro llamar a la API
-            style = MaterialTheme.typography.headlineLarge
-        )
+    val estado by viewModel.estado.collectAsStateWithLifecycle()
+    val refrescando by viewModel.refrescando.collectAsStateWithLifecycle()
+    val mes by viewModel.mes.collectAsStateWithLifecycle()
+    val subiendoFoto by viewModel.subiendoFoto.collectAsStateWithLifecycle()
+    val snackbar = remember { SnackbarHostState() }
 
-        Spacer(Modifier.height(12.dp))
+    LaunchedEffect(Unit) { viewModel.cargar() }
 
-        Row(verticalAlignment = Alignment.Top) {
+    LaunchedEffect(viewModel) {
+        viewModel.errores.collect { snackbar.showSnackbar(it) }
+    }
 
-            // La foto y su boton van apilados, por eso hace falta una Column dentro del Row. CenterHorizontally centra el boton respecto a la foto.
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-
-                Box(
-                    modifier = Modifier
-                        .size(TAMANO_FOTO)
-                        .clip(CircleShape)
-                        .background(Color.White.copy(alpha = 0.10f)),
-                    contentAlignment = Alignment.Center
-                ) {
-                    // tint pinta el icono de ese color, ignorando el que tenga el archivo. Blanco al 40% para que se lea como un hueco vacio y no como contenido real.
-                    Icon(
-                        painter = painterResource(R.drawable.ic_perfil),
-                        contentDescription = "Foto de perfil",
-                        modifier = Modifier.size(72.dp),
-                        tint = Color.White.copy(alpha = 0.4f)
-                    )
-                }
-
-                TextButton(
-                    onClick = onEditarFoto,
-                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp)
-                ) {
-                    Text(
-                        text = "Editar",
-                        style = MaterialTheme.typography.bodyMedium
-                    )
-                }
-            }
-
-            Spacer(Modifier.width(20.dp))
-
-            //hardcodeado, hacer fetch
-            Column(
-                modifier = Modifier.height(TAMANO_FOTO),
-                verticalArrangement = Arrangement.Center
-            ) {
-                DatoUsuario(etiqueta = "Peso", valor = "78 kg")
-                DatoUsuario(etiqueta = "Altura", valor = "1,80 m")
-                DatoUsuario(etiqueta = "Edad", valor = "26 años")
+    EsqueletoPantalla(
+        titulo = "Perfil",
+        snackbar = snackbar,
+        acciones = {
+            IconButton(onClick = onEditarPerfil) {
+                Icon(Icons.Rounded.Edit, contentDescription = "Editar perfil")
             }
         }
-
-        SeparadorDifuminado()
-
-        // Los dias entrenados estan en duro; cuando exista el backend vendran de la API.
-        val diasEntrenados = setOf(2, 3, 6, 9, 10, 13, 16, 17, 20, 23)
-
-        Row(verticalAlignment = Alignment.Bottom) {
-            Text(
-                text = "Entrenos:",
-                style = MaterialTheme.typography.bodyMedium,
-                color = GRIS_APAGADO
-            )
-
-            Spacer(Modifier.width(20.dp))
-
-            // size cuenta cuantos dias hay en el conjunto, asi el numero no se puede desincronizar del calendario.
-            Text(
-                text = diasEntrenados.size.toString(),
-                style = MaterialTheme.typography.bodyMedium ,
-                color = MaterialTheme.colorScheme.primary
-            )
-        }
-
-        Spacer(Modifier.height(20.dp))
-
-        //Podemos llamar a la funcion directamente porque estan en el mismo paquete
-        CalendarioEntrenos(diasEntrenados = diasEntrenados)
-
-        Spacer(Modifier.height(24.dp))
-
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            Button(
-                onClick = onEstadisticas,
-                shape = RoundedCornerShape(12.dp),
-                modifier = Modifier.weight(1f)
+    ) { relleno ->
+        ContenidoSegunEstado(estado = estado, onReintentar = { viewModel.cargar() }) { datos ->
+            RefrescoDeslizable(
+                refrescando = refrescando,
+                onRefrescar = { viewModel.cargar(mostrarIndicador = true) },
+                relleno = relleno
             ) {
-                Text("Estadisticas")
-            }
-
-            Button(
-                onClick = onHistorial,
-                shape = RoundedCornerShape(12.dp),
-                modifier = Modifier.weight(1f)
-            ) {
-                Text("Historial")
+                ContenidoPerfil(
+                    datos = datos,
+                    subiendoFoto = subiendoFoto,
+                    mes = mes,
+                    relleno = relleno,
+                    onElegirFoto = viewModel::cambiarFoto,
+                    onQuitarFoto = viewModel::quitarFoto,
+                    onMesAnterior = viewModel::mesAnterior,
+                    onMesSiguiente = viewModel::mesSiguiente,
+                    onEstadisticas = onEstadisticas,
+                    onHistorial = onHistorial,
+                    onVerEntrenamiento = onVerEntrenamiento
+                )
             }
         }
     }
 }
 
-
 @Composable
-private fun DatoUsuario(etiqueta: String, valor: String) {
-    Row(verticalAlignment = Alignment.CenterVertically) {
-        // El ancho fijo alinea todos los valores en la misma columna, aunque las etiquetas midan distinto.
-        Text(
-            text = etiqueta,
-            style = MaterialTheme.typography.bodyMedium,
-            color = GRIS_APAGADO,
-            modifier = Modifier.width(72.dp)
-        )
-        Text(
-            text = valor,
-            style = MaterialTheme.typography.bodyLarge
-        )
+private fun ContenidoPerfil(
+    datos: DatosPerfil,
+    subiendoFoto: Boolean,
+    mes: YearMonth,
+    relleno: PaddingValues,
+    onElegirFoto: (Uri) -> Unit,
+    onQuitarFoto: () -> Unit,
+    onMesAnterior: () -> Unit,
+    onMesSiguiente: () -> Unit,
+    onEstadisticas: () -> Unit,
+    onHistorial: () -> Unit,
+    onVerEntrenamiento: (Long) -> Unit
+) {
+    val unidad = LocalUnidadPeso.current
+    val usuario = datos.usuario
+    val lista = datos.entrenamientos
+
+    val diasDelMes = remember(lista, mes) {
+        lista.filter { YearMonth.from(it.fecha) == mes }.map { it.fecha.dayOfMonth }.toSet()
+    }
+    val esteMes = remember(lista) {
+        lista.count { YearMonth.from(it.fecha) == YearMonth.now() }
+    }
+    val racha = remember(lista) { lista.rachaSemanas() }
+
+    LazyColumn(
+        contentPadding = relleno,
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+        modifier = Modifier.fillMaxSize()
+    ) {
+        item {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                AvatarEditable(
+                    nombre = usuario.username,
+                    urlFoto = usuario.urlFoto(),
+                    subiendo = subiendoFoto,
+                    onElegirFoto = onElegirFoto,
+                    onQuitarFoto = onQuitarFoto
+                )
+                Spacer(Modifier.width(16.dp))
+                Column {
+                    Text(
+                        text = usuario.username,
+                        style = MaterialTheme.typography.headlineSmall,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    Text(
+                        text = usuario.email,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+            }
+        }
+
+        item {
+            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                TarjetaDato(
+                    etiqueta = "Peso",
+                    valor = usuario.peso?.let { formatearPeso(it, unidad) } ?: "—",
+                    modifier = Modifier.weight(1f)
+                )
+                TarjetaDato(
+                    etiqueta = "Altura",
+                    valor = usuario.altura?.let { "${formatearNumero(it, 0)} cm" } ?: "—",
+                    modifier = Modifier.weight(1f)
+                )
+                TarjetaDato(
+                    etiqueta = "Edad",
+                    valor = usuario.fechaNacimiento?.let { "${edadDesde(it)} años" } ?: "—",
+                    modifier = Modifier.weight(1f)
+                )
+            }
+        }
+
+        item {
+            TituloSeccion("Actividad", Modifier.fillMaxWidth())
+            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                TarjetaDato(etiqueta = "Este mes", valor = "$esteMes", detalle = "entrenos", modifier = Modifier.weight(1f))
+                TarjetaDato(
+                    etiqueta = "Racha",
+                    valor = "$racha",
+                    detalle = if (racha == 1) "semana" else "semanas",
+                    modifier = Modifier.weight(1f)
+                )
+                TarjetaDato(etiqueta = "Total", valor = "${lista.size}", detalle = "entrenos", modifier = Modifier.weight(1f))
+            }
+        }
+
+        item {
+            Tarjeta {
+                CalendarioEntrenos(
+                    mes = mes,
+                    diasEntrenados = diasDelMes,
+                    onMesAnterior = onMesAnterior,
+                    onMesSiguiente = onMesSiguiente
+                )
+            }
+        }
+
+        item {
+            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                BotonSecundario(
+                    texto = "Estadísticas",
+                    onClick = onEstadisticas,
+                    icono = Icons.AutoMirrored.Rounded.ShowChart,
+                    modifier = Modifier.weight(1f)
+                )
+                BotonSecundario(
+                    texto = "Historial",
+                    onClick = onHistorial,
+                    icono = Icons.Rounded.History,
+                    modifier = Modifier.weight(1f)
+                )
+            }
+        }
+
+        lista.firstOrNull()?.let { ultimo ->
+            item {
+                TituloSeccion("Último entreno", Modifier.fillMaxWidth())
+                TarjetaEntrenamiento(entrenamiento = ultimo, onClick = { onVerEntrenamiento(ultimo.id) })
+            }
+        }
     }
 }

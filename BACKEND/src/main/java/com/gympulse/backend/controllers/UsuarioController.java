@@ -1,5 +1,7 @@
 package com.gympulse.backend.controllers;
 
+import org.springframework.http.CacheControl;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
@@ -10,9 +12,12 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 
 import com.gympulse.backend.dtos.ActualizarUsuarioDTO;
+import com.gympulse.backend.dtos.FotoDTO;
 import com.gympulse.backend.dtos.LoginDTO;
 import com.gympulse.backend.dtos.RegistroUsuarioDTO;
 import com.gympulse.backend.dtos.SesionDTO;
@@ -26,6 +31,9 @@ POST /usuario/login         -> comprobar email y contrasena y devolver el token 
 GET  /usuario/{id}          -> obtener un usuario por id
 PUT  /usuario/{id}          -> actualizar datos del usuario
 DELETE /usuario/{id}        -> eliminar un usuario
+PUT  /usuario/{id}/foto     -> subir o sustituir la foto de perfil (multipart, campo "foto")
+GET  /usuario/{id}/foto     -> descargar la foto de perfil
+DELETE /usuario/{id}/foto   -> quitar la foto de perfil
 */
 
 @RestController
@@ -83,6 +91,28 @@ public class UsuarioController {
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> eliminar(@PathVariable Long id, @AuthenticationPrincipal Jwt token) {
         usuarioService.eliminar(id, UsuarioAutenticado.id(token));
+        return ResponseEntity.noContent().build();
+    }
+
+    @PutMapping(path = "/{id}/foto", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<UsuarioDTO> subirFoto(@PathVariable Long id,
+            @RequestParam("foto") MultipartFile foto,
+            @AuthenticationPrincipal Jwt token) {
+        return ResponseEntity.ok(usuarioService.guardarFoto(id, foto, UsuarioAutenticado.id(token)));
+    }
+
+    @GetMapping("/{id}/foto")
+    public ResponseEntity<byte[]> foto(@PathVariable Long id, @AuthenticationPrincipal Jwt token) {
+        FotoDTO foto = usuarioService.obtenerFoto(id, UsuarioAutenticado.id(token));
+        return ResponseEntity.ok()
+                .contentType(MediaType.parseMediaType(foto.tipo()))
+                .cacheControl(CacheControl.noCache().cachePrivate())
+                .body(foto.datos());
+    }
+
+    @DeleteMapping("/{id}/foto")
+    public ResponseEntity<Void> eliminarFoto(@PathVariable Long id, @AuthenticationPrincipal Jwt token) {
+        usuarioService.eliminarFoto(id, UsuarioAutenticado.id(token));
         return ResponseEntity.noContent().build();
     }
 }

@@ -27,7 +27,8 @@ GymPulse/
 | JDK | Temurin 21.0.9 (SDKMAN) |
 | Build | Maven 3.9.16 (SDKMAN) |
 | Base de datos | H2 embebida en archivo *(provisional)* → PostgreSQL en producción |
-| Contraseñas | BCrypt (spring-security-crypto) |
+| Seguridad | Spring Security + OAuth2 Resource Server (JWT HS256) |
+| Contraseñas | BCrypt |
 | Logging | SLF4J + Logback |
 
 > **[BACKEND/funcionamientoBackend.md](BACKEND/funcionamientoBackend.md)** explica el backend entero: el
@@ -42,9 +43,9 @@ com.gympulse.backend/
 ├── repositories/   Acceso a datos — interfaces JPA generadas por Spring
 ├── models/         Entidades JPA — mapean a tablas de la base de datos
 ├── dtos/           Records que entran y salen por la API — nunca se exponen las entidades
-├── core/           Configuración global (CORS, BCrypt, manejo de errores)
-├── middlewares/    Filtros e interceptores (pendiente: JWT)
-└── helpers/        Mapeador entidad↔DTO y validaciones
+├── core/           Configuración global (seguridad y JWT, CORS, BCrypt, manejo de errores)
+├── middlewares/    Vacío: el filtro del JWT lo pone Spring Security desde core/SeguridadConfig
+└── helpers/        Mapeador entidad↔DTO, validaciones, id del token y detección del tipo de imagen
 ```
 
 Las entidades JPA no salen nunca en las respuestas: se convierten a DTO en la capa de servicio.
@@ -54,17 +55,18 @@ y las colecciones perezosas se leen dentro de la transacción.
 ### Modelo de datos
 
 ```
-usuarios
+usuarios ──── fotos_perfil        (1 a 1, opcional)
   └──< entrenamientos
              └──< series >── ejercicios
 ```
 
 | Entidad | Tabla | Descripción |
 |---|---|---|
-| Usuario | `usuarios` | Cuenta, credenciales y datos físicos |
+| Usuario | `usuarios` | Cuenta, credenciales, datos físicos y `fotoActualizadaEn` (cuándo cambió la foto) |
 | Ejercicio | `ejercicios` | Catálogo de ejercicios disponibles |
 | Entrenamiento | `entrenamientos` | Sesión de entreno de un usuario en una fecha |
 | Serie | `series` | Ejercicio + repeticiones + peso dentro de un entrenamiento |
+| FotoPerfil | `fotos_perfil` | Imagen de perfil de un usuario (bytes + tipo), en tabla aparte para no cargarla con cada `Usuario` |
 
 ### Endpoints
 
@@ -75,6 +77,9 @@ usuarios
 | GET | `/usuario/{id}` | Obtener usuario por id |
 | PUT | `/usuario/{id}` | Actualizar usuario |
 | DELETE | `/usuario/{id}` | Eliminar usuario |
+| PUT | `/usuario/{id}/foto` | Subir o sustituir la foto de perfil (`multipart/form-data`, campo `foto`; JPEG, PNG o WebP, máx. 5 MB) |
+| GET | `/usuario/{id}/foto` | Descargar la foto de perfil (404 si no tiene) |
+| DELETE | `/usuario/{id}/foto` | Quitar la foto de perfil |
 | POST | `/ejercicio` | Crear ejercicio |
 | GET | `/ejercicio` | Listar todos / filtrar por `?nombre=` o `?grupoMuscular=` |
 | GET | `/ejercicio/{id}` | Obtener ejercicio por id |
@@ -97,7 +102,6 @@ La primera vez hay que crear el archivo de secretos, que no está en git:
 
 ```bash
 cd BACKEND
-cp .env.example .env
 echo "JWT_SECRETO=$(openssl rand -base64 48)" > .env
 ```
 
@@ -116,6 +120,8 @@ La API queda disponible en `http://localhost:8080`.
 > `BACKEND/data/gympulse.mv.db` y se pueden inspeccionar en `http://localhost:8080/h2-console`
 > (JDBC URL `jdbc:h2:file:./data/gympulse`, usuario `sa`, sin contraseña).
 > Los logs se escriben en `BACKEND/logs/gympulse.log`.
+
+Los tests se lanzan con `mvn test` y usan una BD en memoria, así que no tocan la tuya.
 
 ### Autenticación
 
@@ -151,11 +157,12 @@ Todos los errores devuelven el mismo JSON (`timestamp`, `codigo`, `mensaje`):
 
 | Código | Cuándo |
 |---|---|
-| 400 | Falta un campo obligatorio |
+| 400 | Falta un campo obligatorio, o la imagen subida no es JPEG, PNG ni WebP |
 | 401 | Credenciales incorrectas, o token ausente / caducado / manipulado |
 | 403 | Intentas operar sobre la cuenta de otro usuario |
 | 404 | El recurso no existe, o es de otro usuario |
 | 409 | Email o username ya registrados, o se borra algo que aún está referenciado |
+| 413 | La imagen subida supera los 5 MB |
 | 500 | Cualquier otro error |
 
 ---
@@ -166,26 +173,63 @@ Todos los errores devuelven el mismo JSON (`timestamp`, `codigo`, `mensaje`):
 
 | | |
 |---|---|
-| Lenguaje | Kotlin |
-| UI | Jetpack Compose |
+| Lenguaje | Kotlin 2.2.10 |
+| UI | Jetpack Compose + Material 3 (BOM 2026.02.01) |
+| Navegación | Navigation Compose 2.9.8 con rutas tipadas |
+| Red | Retrofit 2.11 + OkHttp 4.12 + kotlinx.serialization |
+| Imágenes | Coil 3.4.0 *(fijado: las versiones nuevas exigen Kotlin 2.4 y compileSdk 37)* |
+| Persistencia local | DataStore (token de sesión y preferencias) |
+| Android | minSdk 26 · targetSdk 36 |
 | IDE | Android Studio Quail 1 (2026.1.1) |
 | Build | Gradle + AGP 9.2.1 |
-| Compose BOM | 2026.02.01 |
 
-### Pantallas implementadas
+### Estructura de paquetes
 
-- **Login / Registro**
-- **Perfil** — datos del usuario, calendario de entrenos, acceso a estadísticas e historial
-- **Entrenamiento** — iniciar entrenamiento vacío, gestión de rutinas, catálogo de ejercicios
-- **Ajustes** — perfil, cuenta, notificaciones, idioma, tema, unidades
+```
+com.gympulse.android/
+├── data/
+│   ├── api/            Retrofit: interfaz de la API, cliente HTTP, interceptor del token y errores
+│   ├── modelo/         data class calcadas de los DTO del backend
+│   ├── repositorios/   Puerta de entrada a la API para las pantallas; devuelven Result<T>
+│   ├── sesion/         Token guardado en DataStore y estado de la sesión
+│   ├── preferencias/   Unidades (kg/lb) y notificaciones, solo en el móvil
+│   └── perfil/         Subida de la foto de perfil (se reduce a 512 px antes de enviarla)
+└── ui/
+    ├── navegacion/     Rutas y grafo de navegación; la sesión decide si se ve el login
+    ├── theme/          Paleta, tipografía y formas
+    ├── comun/          Estado de carga, fábrica de ViewModels, formato y cálculos
+    ├── componentes/    Piezas reutilizables (barras, tarjetas, campos, gráficas…)
+    └── <pantalla>/     Una carpeta por pantalla, con su Pantalla y su ViewModel
+```
+
+Cada pantalla tiene un ViewModel que expone su estado con `StateFlow` y habla con los
+repositorios. Las dependencias se montan a mano en `Contenedor` (`AppGymPulse.kt`), sin Hilt.
+
+### Pantallas
+
+- **Login / Registro** — validación en el formulario; al registrarte entras directamente
+- **Entrenamiento** — empezar un entreno, continuar el de hoy y ver los recientes
+  - **Entreno en curso** — cronómetro, series agrupadas por ejercicio, añadir y borrar series
+  - **Ejercicios** — catálogo con búsqueda y filtro por grupo muscular; crear y borrar
+- **Perfil** — foto, datos físicos, racha semanal, calendario de entrenos y último entreno
+  - **Historial** y **detalle** de cada entrenamiento
+  - **Estadísticas** — entrenos por semana y progresión de peso por ejercicio
+- **Ajustes** — datos personales, cuenta (borrarla), notificaciones, unidades, idioma, tema y
+  cerrar sesión
 
 ### Arrancar el frontend
 
-```bash
-/opt/android-studio/bin/studio.sh
-```
+1. Arranca el backend (ver arriba). La app no funciona sin él.
+2. Abre `FRONTEND/Android/` en Android Studio (`/opt/android-studio/bin/studio.sh`).
+3. Si has cambiado dependencias, haz **Sync Project with Gradle Files**.
+4. Elige el emulador y pulsa **▶ Run 'app'**.
 
-Abrir `FRONTEND/Android/` como proyecto y ejecutar en emulador o dispositivo físico.
+> El emulador ve el `localhost` del ordenador como `10.0.2.2`, que es la dirección que usa la app
+> (`ClienteApi.URL_BASE`). En un móvil físico hay que cambiarla por la IP del PC en la red local,
+> también en `res/xml/network_security_config.xml`.
+
+Los tests de la lógica (cálculos, estadísticas y formato) se lanzan con
+`./gradlew :app:testDebugUnitTest` desde `FRONTEND/Android/`.
 
 ---
 
@@ -198,6 +242,9 @@ Abrir `FRONTEND/Android/` como proyecto y ejecutar en emulador o dispositivo fí
 - [ ] Validación con `spring-boot-starter-validation` en vez de comprobaciones manuales
 - [ ] Login con Google (OAuth 2.0)
 - [ ] Migración a PostgreSQL
-- [ ] Desarrollo de frontend al completo
-- [ ] Conectar frontend Android con la API
-- [ ] Frontend iOS (requiere macOS)
+- [x] Desarrollo de frontend al completo
+- [x] Conectar frontend Android con la API
+- [x] Foto de perfil guardada en el backend
+- [ ] Rutinas (necesitan soporte en el backend)
+- [ ] Idioma inglés, tema claro y envío real de notificaciones (ahora solo se guarda la preferencia)
+

@@ -1,5 +1,6 @@
 package com.gympulse.backend.dtos;
 
+import java.time.Instant;
 import java.time.LocalDate;
 
 public record UsuarioDTO(
@@ -8,5 +9,6 @@ public record UsuarioDTO(
         String email,
         Double peso,
         Double altura,
-        LocalDate fechaNacimiento) {
+        LocalDate fechaNacimiento,
+        Instant fotoActualizadaEn) {
 }

@@ -34,7 +34,8 @@ public final class Mapeador {
                 usuario.getEmail(),
                 usuario.getPeso(),
                 usuario.getAltura(),
-                usuario.getFechaNacimiento());
+                usuario.getFechaNacimiento(),
+                usuario.getFotoActualizadaEn());
     }
 
     public static EjercicioDTO aDTO(Ejercicio ejercicio) {

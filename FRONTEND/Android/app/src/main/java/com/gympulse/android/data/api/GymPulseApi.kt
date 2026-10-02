@@ -11,11 +11,14 @@ import com.gympulse.android.data.modelo.RegistroPeticion
 import com.gympulse.android.data.modelo.Serie
 import com.gympulse.android.data.modelo.Sesion
 import com.gympulse.android.data.modelo.Usuario
+import okhttp3.MultipartBody
 import retrofit2.http.Body
 import retrofit2.http.DELETE
 import retrofit2.http.GET
+import retrofit2.http.Multipart
 import retrofit2.http.POST
 import retrofit2.http.PUT
+import retrofit2.http.Part
 import retrofit2.http.Path
 import retrofit2.http.Query
 
@@ -35,6 +38,13 @@ interface GymPulseApi {
 
     @DELETE("usuario/{id}")
     suspend fun eliminarUsuario(@Path("id") id: Long)
+
+    @Multipart
+    @PUT("usuario/{id}/foto")
+    suspend fun subirFoto(@Path("id") id: Long, @Part foto: MultipartBody.Part): Usuario
+
+    @DELETE("usuario/{id}/foto")
+    suspend fun eliminarFoto(@Path("id") id: Long)
 
     @POST("ejercicio")
     suspend fun crearEjercicio(@Body datos: CrearEjercicioPeticion): Ejercicio

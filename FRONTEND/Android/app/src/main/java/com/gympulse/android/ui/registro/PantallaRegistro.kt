@@ -1,132 +1,188 @@
 package com.gympulse.android.ui.registro
 
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Button
+import androidx.compose.foundation.layout.systemBarsPadding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.rounded.ArrowBack
+import androidx.compose.material.icons.rounded.AlternateEmail
+import androidx.compose.material.icons.rounded.Person
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.gympulse.android.ui.componentes.AvisoError
+import com.gympulse.android.ui.componentes.BotonPrincipal
+import com.gympulse.android.ui.componentes.CampoContrasena
+import com.gympulse.android.ui.componentes.CampoTexto
 import com.gympulse.android.ui.theme.GymPulseTheme
 
-// Pantalla de registro. Igual que el login, todavia no crea nada: cuando exista el backend, el boton llamara a la API.
 @Composable
 fun PantallaRegistro(
-    onRegistroCorrecto: () -> Unit,
-    onVolverALogin: () -> Unit,
-    modifier: Modifier = Modifier
+    onVolver: () -> Unit,
+    viewModel: RegistroViewModel = viewModel(factory = RegistroViewModel.Fabrica)
 ) {
-    var usuario by remember { mutableStateOf("")}
-    var email by remember { mutableStateOf("") }
-    var contrasena by remember { mutableStateOf("") }
-    var repetirContrasena by remember { mutableStateOf("") }
+    val estado by viewModel.estado.collectAsStateWithLifecycle()
 
-    // Se recalcula solo en cada tecla, porque depende de estado. Cuando cambia, el boton se activa o se desactiva sin que hagamos nada.
-    val datosValidos = email.isNotBlank() &&
-            contrasena.isNotBlank() &&
-            contrasena == repetirContrasena
+    ContenidoRegistro(
+        estado = estado,
+        onUsuarioCambiado = viewModel::onUsuarioCambiado,
+        onEmailCambiado = viewModel::onEmailCambiado,
+        onContrasenaCambiada = viewModel::onContrasenaCambiada,
+        onRepetirCambiada = viewModel::onRepetirCambiada,
+        onCrearCuenta = viewModel::crearCuenta,
+        onVolver = onVolver
+    )
+}
 
-    Column(
-        modifier = modifier
-            .fillMaxSize()
-            .padding(24.dp),
-        verticalArrangement = Arrangement.Center
-    ) {
-        Text(
-            text = "Crear cuenta",
-            style = MaterialTheme.typography.headlineLarge
-        )
+@Composable
+private fun ContenidoRegistro(
+    estado: EstadoRegistro,
+    onUsuarioCambiado: (String) -> Unit,
+    onEmailCambiado: (String) -> Unit,
+    onContrasenaCambiada: (String) -> Unit,
+    onRepetirCambiada: (String) -> Unit,
+    onCrearCuenta: () -> Unit,
+    onVolver: () -> Unit
+) {
+    val foco = LocalFocusManager.current
 
-        Text(
-            text = "Empieza a registrar tus entrenamientos",
-            style = MaterialTheme.typography.bodyMedium
-        )
-
-        Spacer(modifier = Modifier.height(32.dp))
-
-        OutlinedTextField(
-            value = usuario,
-            onValueChange = { usuario = it },
-            label = { Text("Nombre de usuario") },
-            singleLine = true,
-            modifier = Modifier.fillMaxWidth()
-        )
-
-        Spacer(modifier = Modifier.height(12.dp))
-
-        OutlinedTextField(
-            value = email,
-            onValueChange = { email = it },
-            label = { Text("Email") },
-            singleLine = true,
-            modifier = Modifier.fillMaxWidth()
-        )
-
-        Spacer(modifier = Modifier.height(12.dp))
-
-        OutlinedTextField(
-            value = contrasena,
-            onValueChange = { contrasena = it },
-            label = { Text("Contrasena") },
-            singleLine = true,
-            visualTransformation = PasswordVisualTransformation(),
-            modifier = Modifier.fillMaxWidth()
-        )
-
-        Spacer(modifier = Modifier.height(12.dp))
-
-        // isError pinta el campo en rojo. Solo avisa si ya se ha escrito algo, para no marcar error nada mas entrar.
-        OutlinedTextField(
-            value = repetirContrasena,
-            onValueChange = { repetirContrasena = it },
-            label = { Text("Repetir contrasena") },
-            singleLine = true,
-            visualTransformation = PasswordVisualTransformation(),
-            isError = repetirContrasena.isNotBlank() && contrasena != repetirContrasena,
-            modifier = Modifier.fillMaxWidth()
-        )
-
-        Spacer(modifier = Modifier.height(32.dp))
-
-        Button(
-            onClick = onRegistroCorrecto,
-            enabled = datosValidos,
-            modifier = Modifier.fillMaxWidth()
+    Box(Modifier.fillMaxSize()) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .systemBarsPadding()
+                .imePadding()
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 24.dp, vertical = 8.dp)
         ) {
-            Text("Crear cuenta")
-        }
+            IconButton(onClick = onVolver, modifier = Modifier.offset(x = (-12).dp)) {
+                Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = "Volver")
+            }
 
-        // TextButton es un boton sin fondo, para acciones secundarias.
-        TextButton(
-            onClick = onVolverALogin,
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Text("Ya tengo una cuenta")
+            Spacer(Modifier.height(16.dp))
+            Text(text = "Crear cuenta", style = MaterialTheme.typography.headlineLarge)
+            Spacer(Modifier.height(6.dp))
+            Text(
+                text = "Empieza a registrar tus entrenamientos",
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+
+            Spacer(Modifier.height(32.dp))
+
+            CampoTexto(
+                valor = estado.usuario,
+                onCambio = onUsuarioCambiado,
+                etiqueta = "Nombre de usuario",
+                icono = Icons.Rounded.Person
+            )
+            Spacer(Modifier.height(12.dp))
+            CampoTexto(
+                valor = estado.email,
+                onCambio = onEmailCambiado,
+                etiqueta = "Email",
+                icono = Icons.Rounded.AlternateEmail,
+                teclado = KeyboardType.Email,
+                error = estado.errorEmail
+            )
+            Spacer(Modifier.height(12.dp))
+            CampoContrasena(
+                valor = estado.contrasena,
+                onCambio = onContrasenaCambiada,
+                etiqueta = "Contraseña",
+                error = estado.errorContrasena
+            )
+            Spacer(Modifier.height(12.dp))
+            CampoContrasena(
+                valor = estado.repetirContrasena,
+                onCambio = onRepetirCambiada,
+                etiqueta = "Repetir contraseña",
+                error = estado.errorRepetir,
+                accionIme = ImeAction.Done,
+                alAccionIme = {
+                    foco.clearFocus()
+                    onCrearCuenta()
+                }
+            )
+
+            AnimatedVisibility(visible = estado.error != null) {
+                AvisoError(
+                    mensaje = estado.error.orEmpty(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 16.dp)
+                )
+            }
+
+            Spacer(Modifier.height(28.dp))
+
+            BotonPrincipal(
+                texto = "Crear cuenta",
+                onClick = {
+                    foco.clearFocus()
+                    onCrearCuenta()
+                },
+                habilitado = estado.puedeEnviar,
+                cargando = estado.cargando
+            )
+
+            Spacer(Modifier.height(12.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.Center,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "¿Ya tienes cuenta?",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                TextButton(onClick = onVolver) {
+                    Text("Inicia sesión")
+                }
+            }
         }
     }
 }
 
-@Preview(showBackground = true)
+@Preview
 @Composable
-fun PantallaRegistroPreview() {
+private fun ContenidoRegistroPreview() {
     GymPulseTheme {
-        Surface(modifier = Modifier.fillMaxSize()) {
-            PantallaRegistro(onRegistroCorrecto = {}, onVolverALogin = {})
-        }
+        ContenidoRegistro(
+            estado = EstadoRegistro(usuario = "alex", email = "alex@", contrasena = "123"),
+            onUsuarioCambiado = {},
+            onEmailCambiado = {},
+            onContrasenaCambiada = {},
+            onRepetirCambiada = {},
+            onCrearCuenta = {},
+            onVolver = {}
+        )
     }
 }

@@ -1,22 +1,32 @@
 package com.gympulse.backend.services;
 
+import java.io.IOException;
+import java.io.UncheckedIOException;
+import java.time.Instant;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
 import com.gympulse.backend.core.ManejoErrores.exceptions.AccesoProhibidoException;
 import com.gympulse.backend.core.ManejoErrores.exceptions.ConflictoException;
 import com.gympulse.backend.core.ManejoErrores.exceptions.CredencialesInvalidasException;
 import com.gympulse.backend.core.ManejoErrores.exceptions.RecursoNoEncontradoException;
 import com.gympulse.backend.dtos.ActualizarUsuarioDTO;
+import com.gympulse.backend.dtos.FotoDTO;
 import com.gympulse.backend.dtos.LoginDTO;
 import com.gympulse.backend.dtos.RegistroUsuarioDTO;
 import com.gympulse.backend.dtos.SesionDTO;
 import com.gympulse.backend.dtos.UsuarioDTO;
 import com.gympulse.backend.helpers.Mapeador;
+import com.gympulse.backend.helpers.TipoImagen;
 import com.gympulse.backend.helpers.Validaciones;
+import com.gympulse.backend.models.FotoPerfil;
 import com.gympulse.backend.models.Usuario;
+import com.gympulse.backend.repositories.FotoPerfilRepository;
 import com.gympulse.backend.repositories.UsuarioRepository;
 
 /*
@@ -35,12 +45,14 @@ public class UsuarioService {
     private static final Logger log = LoggerFactory.getLogger(UsuarioService.class);
 
     private final UsuarioRepository usuarioRepository;
+    private final FotoPerfilRepository fotoPerfilRepository;
     private final PasswordEncoder passwordEncoder;
     private final TokenService tokenService;
 
-    public UsuarioService(UsuarioRepository usuarioRepository, PasswordEncoder passwordEncoder,
-            TokenService tokenService) {
+    public UsuarioService(UsuarioRepository usuarioRepository, FotoPerfilRepository fotoPerfilRepository,
+            PasswordEncoder passwordEncoder, TokenService tokenService) {
         this.usuarioRepository = usuarioRepository;
+        this.fotoPerfilRepository = fotoPerfilRepository;
         this.passwordEncoder = passwordEncoder;
         this.tokenService = tokenService;
     }
@@ -113,13 +125,69 @@ public class UsuarioService {
         return Mapeador.aDTO(usuarioRepository.save(usuario));
     }
 
+    @Transactional
     public void eliminar(Long id, Long usuarioAutenticadoId) {
         exigirQueSeaElMismo(id, usuarioAutenticadoId);
         if (!usuarioRepository.existsById(id)) {
             throw new RecursoNoEncontradoException("Usuario no encontrado");
         }
         log.info("Eliminando usuario con id: {}", id);
+        fotoPerfilRepository.deleteById(id);
         usuarioRepository.deleteById(id);
+    }
+
+    @Transactional
+    public UsuarioDTO guardarFoto(Long id, MultipartFile archivo, Long usuarioAutenticadoId) {
+        exigirQueSeaElMismo(id, usuarioAutenticadoId);
+        Usuario usuario = obtener(id);
+
+        if (archivo == null || archivo.isEmpty()) {
+            throw new IllegalArgumentException("No se ha enviado ninguna imagen");
+        }
+        if (archivo.getSize() > FotoPerfil.TAMANO_MAXIMO) {
+            throw new IllegalArgumentException("La imagen no puede superar los 5 MB");
+        }
+
+        byte[] datos = leer(archivo);
+        String tipo = TipoImagen.detectar(datos)
+                .orElseThrow(() -> new IllegalArgumentException("Formato no admitido: usa JPEG, PNG o WebP"));
+
+        FotoPerfil foto = fotoPerfilRepository.findById(id).orElseGet(FotoPerfil::new);
+        foto.setUsuario(usuario);
+        foto.setDatos(datos);
+        foto.setTipo(tipo);
+        fotoPerfilRepository.save(foto);
+
+        usuario.setFotoActualizadaEn(Instant.now());
+        log.info("Usuario {} ha actualizado su foto de perfil ({}, {} bytes)", id, tipo, datos.length);
+        return Mapeador.aDTO(usuarioRepository.save(usuario));
+    }
+
+    @Transactional(readOnly = true)
+    public FotoDTO obtenerFoto(Long id, Long usuarioAutenticadoId) {
+        exigirQueSeaElMismo(id, usuarioAutenticadoId);
+        FotoPerfil foto = fotoPerfilRepository.findById(id)
+                .orElseThrow(() -> new RecursoNoEncontradoException("El usuario no tiene foto de perfil"));
+        return new FotoDTO(foto.getDatos(), foto.getTipo());
+    }
+
+    @Transactional
+    public void eliminarFoto(Long id, Long usuarioAutenticadoId) {
+        exigirQueSeaElMismo(id, usuarioAutenticadoId);
+        Usuario usuario = obtener(id);
+
+        fotoPerfilRepository.deleteById(id);
+        usuario.setFotoActualizadaEn(null);
+        usuarioRepository.save(usuario);
+        log.info("Usuario {} ha quitado su foto de perfil", id);
+    }
+
+    private byte[] leer(MultipartFile archivo) {
+        try {
+            return archivo.getBytes();
+        } catch (IOException e) {
+            throw new UncheckedIOException("No se pudo leer la imagen subida", e);
+        }
     }
 
     private Usuario obtener(Long id) {

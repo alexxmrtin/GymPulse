@@ -10,6 +10,9 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
+import org.springframework.web.multipart.MultipartException;
+import org.springframework.web.multipart.support.MissingServletRequestPartException;
 
 import com.gympulse.backend.core.ManejoErrores.exceptions.AccesoProhibidoException;
 import com.gympulse.backend.core.ManejoErrores.exceptions.ConflictoException;
@@ -76,6 +79,22 @@ public class ManejadorErrores {
         return ResponseEntity
                 .status(HttpStatus.BAD_REQUEST)
                 .body(respuesta(400, ex.getMessage()));
+    }
+
+    @ExceptionHandler(MaxUploadSizeExceededException.class)
+    public ResponseEntity<Map<String, Object>> manejarArchivoDemasiadoGrande(MaxUploadSizeExceededException ex) {
+        log.warn("Archivo demasiado grande: {}", ex.getMessage());
+        return ResponseEntity
+                .status(HttpStatus.CONTENT_TOO_LARGE)
+                .body(respuesta(413, "La imagen no puede superar los 5 MB"));
+    }
+
+    @ExceptionHandler({ MultipartException.class, MissingServletRequestPartException.class })
+    public ResponseEntity<Map<String, Object>> manejarSubidaInvalida(Exception ex) {
+        log.warn("Subida de archivo invalida: {}", ex.getMessage());
+        return ResponseEntity
+                .status(HttpStatus.BAD_REQUEST)
+                .body(respuesta(400, "Envia la imagen como multipart/form-data en el campo 'foto'"));
     }
 
     @ExceptionHandler(RuntimeException.class)

@@ -10,7 +10,7 @@ import okhttp3.Response
  que la peticion salga, para no tener que pasar el token a mano en cada llamada de GymPulseApi.
 
  Tambien mira la respuesta: si el backend contesta 401 el token ha caducado o ya no vale, asi que
- se borra la sesion y la interfaz puede reaccionar observando almacen.sesionActiva.
+ se borra la sesion y la interfaz puede reaccionar observando almacen.estado.
 */
 class InterceptorToken(private val almacen: AlmacenSesion) : Interceptor {
 

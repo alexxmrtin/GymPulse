@@ -18,12 +18,7 @@ object ClienteApi {
     */
     const val URL_BASE = "http://10.0.2.2:8080/"
 
-    fun crear(almacen: AlmacenSesion): GymPulseApi {
-        val json = Json {
-            ignoreUnknownKeys = true
-            explicitNulls = false
-        }
-
+    fun crearClienteHttp(almacen: AlmacenSesion): OkHttpClient {
         val registro = HttpLoggingInterceptor().apply {
             level = if (BuildConfig.DEBUG) {
                 HttpLoggingInterceptor.Level.BODY
@@ -32,12 +27,19 @@ object ClienteApi {
             }
         }
 
-        val cliente = OkHttpClient.Builder()
+        return OkHttpClient.Builder()
             .addInterceptor(InterceptorToken(almacen))
             .addInterceptor(registro)
             .connectTimeout(15, TimeUnit.SECONDS)
             .readTimeout(15, TimeUnit.SECONDS)
             .build()
+    }
+
+    fun crear(cliente: OkHttpClient): GymPulseApi {
+        val json = Json {
+            ignoreUnknownKeys = true
+            explicitNulls = false
+        }
 
         return Retrofit.Builder()
             .baseUrl(URL_BASE)

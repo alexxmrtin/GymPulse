@@ -11,7 +11,8 @@ data class Usuario(
     val peso: Double? = null,
     val altura: Double? = null,
     @Serializable(with = SerializadorLocalDate::class)
-    val fechaNacimiento: LocalDate? = null
+    val fechaNacimiento: LocalDate? = null,
+    val fotoActualizadaEn: String? = null
 )
 
 @Serializable

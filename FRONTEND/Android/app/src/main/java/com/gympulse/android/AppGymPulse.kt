@@ -1,8 +1,14 @@
 package com.gympulse.android
 
 import android.app.Application
+import android.content.Context
+import coil3.ImageLoader
+import coil3.SingletonImageLoader
+import coil3.network.okhttp.OkHttpNetworkFetcherFactory
 import com.gympulse.android.data.api.ClienteApi
 import com.gympulse.android.data.api.GymPulseApi
+import com.gympulse.android.data.perfil.FotoPerfilRepositorio
+import com.gympulse.android.data.preferencias.AlmacenPreferencias
 import com.gympulse.android.data.repositorios.EjercicioRepositorio
 import com.gympulse.android.data.repositorios.EntrenamientoRepositorio
 import com.gympulse.android.data.repositorios.SerieRepositorio
@@ -12,6 +18,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
+import okhttp3.OkHttpClient
 
 /*
  Una clase Application se crea una sola vez, antes que cualquier Activity, y vive mientras viva el
@@ -24,16 +31,19 @@ import kotlinx.coroutines.launch
 class Contenedor(aplicacion: Application) {
 
     val almacenSesion: AlmacenSesion = AlmacenSesion(aplicacion)
+    val preferencias: AlmacenPreferencias = AlmacenPreferencias(aplicacion)
 
-    private val api: GymPulseApi = ClienteApi.crear(almacenSesion)
+    val clienteHttp: OkHttpClient = ClienteApi.crearClienteHttp(almacenSesion)
+    private val api: GymPulseApi = ClienteApi.crear(clienteHttp)
 
     val usuarios = UsuarioRepositorio(api, almacenSesion)
+    val fotoPerfil = FotoPerfilRepositorio(aplicacion, api, almacenSesion)
     val ejercicios = EjercicioRepositorio(api)
     val entrenamientos = EntrenamientoRepositorio(api)
     val series = SerieRepositorio(api)
 }
 
-class AppGymPulse : Application() {
+class AppGymPulse : Application(), SingletonImageLoader.Factory {
 
     lateinit var contenedor: Contenedor
         private set
@@ -47,4 +57,11 @@ class AppGymPulse : Application() {
             contenedor.almacenSesion.cargar()
         }
     }
+
+    override fun newImageLoader(context: Context): ImageLoader =
+        ImageLoader.Builder(context)
+            .components {
+                add(OkHttpNetworkFetcherFactory(callFactory = { contenedor.clienteHttp }))
+            }
+            .build()
 }
