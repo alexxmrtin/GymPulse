@@ -11,7 +11,6 @@ import com.gympulse.backend.core.ManejoErrores.exceptions.RecursoNoEncontradoExc
 import com.gympulse.backend.dtos.CrearEntrenamientoDTO;
 import com.gympulse.backend.dtos.EntrenamientoDTO;
 import com.gympulse.backend.helpers.Mapeador;
-import com.gympulse.backend.helpers.Validaciones;
 import com.gympulse.backend.models.Entrenamiento;
 import com.gympulse.backend.models.Usuario;
 import com.gympulse.backend.repositories.EntrenamientoRepository;
@@ -32,7 +31,6 @@ public class EntrenamientoService {
 
     @Transactional
     public EntrenamientoDTO crear(CrearEntrenamientoDTO datos, Long usuarioId) {
-        Validaciones.exigirValor(datos.fecha(), "fecha");
 
         Usuario usuario = usuarioRepository.findById(usuarioId)
                 .orElseThrow(() -> new RecursoNoEncontradoException("Usuario no encontrado"));

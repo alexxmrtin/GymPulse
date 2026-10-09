@@ -1,7 +1,7 @@
 package com.gympulse.android.data.api
 
 import com.gympulse.android.BuildConfig
-import com.gympulse.android.data.sesion.AlmacenSesion
+import com.gympulse.android.data.sesion.GestorTokens
 import com.jakewharton.retrofit2.converter.kotlinx.serialization.asConverterFactory
 import kotlinx.serialization.json.Json
 import okhttp3.MediaType.Companion.toMediaType
@@ -18,7 +18,12 @@ object ClienteApi {
     */
     const val URL_BASE = "http://10.0.2.2:8080/"
 
-    fun crearClienteHttp(almacen: AlmacenSesion): OkHttpClient {
+    private val json = Json {
+        ignoreUnknownKeys = true
+        explicitNulls = false
+    }
+
+    fun crearClienteBase(): OkHttpClient {
         val registro = HttpLoggingInterceptor().apply {
             level = if (BuildConfig.DEBUG) {
                 HttpLoggingInterceptor.Level.BODY
@@ -28,24 +33,26 @@ object ClienteApi {
         }
 
         return OkHttpClient.Builder()
-            .addInterceptor(InterceptorToken(almacen))
             .addInterceptor(registro)
             .connectTimeout(15, TimeUnit.SECONDS)
             .readTimeout(15, TimeUnit.SECONDS)
             .build()
     }
 
-    fun crear(cliente: OkHttpClient): GymPulseApi {
-        val json = Json {
-            ignoreUnknownKeys = true
-            explicitNulls = false
-        }
+    fun crearClienteHttp(base: OkHttpClient, almacen: GestorTokens, apiSesion: ApiSesion): OkHttpClient =
+        base.newBuilder()
+            .apply { interceptors().add(0, InterceptorToken(almacen)) }
+            .authenticator(RenovadorToken(almacen, apiSesion))
+            .build()
 
-        return Retrofit.Builder()
+    fun crearApiSesion(base: OkHttpClient): ApiSesion = retrofit(base).create(ApiSesion::class.java)
+
+    fun crear(cliente: OkHttpClient): GymPulseApi = retrofit(cliente).create(GymPulseApi::class.java)
+
+    private fun retrofit(cliente: OkHttpClient): Retrofit =
+        Retrofit.Builder()
             .baseUrl(URL_BASE)
             .client(cliente)
             .addConverterFactory(json.asConverterFactory("application/json".toMediaType()))
             .build()
-            .create(GymPulseApi::class.java)
-    }
 }

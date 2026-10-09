@@ -27,6 +27,11 @@ nbproject/private/
 .DS_Store
 .directory
 
+# Tests: solo en local
+BACKEND/src/test/
+FRONTEND/Android/app/src/test/
+FRONTEND/Android/app/src/androidTest/
+
 # Secretos / entorno local
 *.env
 application-local.properties

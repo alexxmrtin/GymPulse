@@ -132,9 +132,10 @@ private fun SelectorEjercicio(
                     .padding(vertical = 12.dp, horizontal = 4.dp)
             ) {
                 Text(ejercicio.nombre, style = MaterialTheme.typography.bodyLarge)
-                ejercicio.grupoMuscular?.let {
+                val detalle = listOfNotNull(ejercicio.grupoMuscular, "Personalizado".takeIf { !ejercicio.predefinido })
+                if (detalle.isNotEmpty()) {
                     Text(
-                        text = it,
+                        text = detalle.joinToString(" · "),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -144,7 +145,7 @@ private fun SelectorEjercicio(
         if (filtrados.isEmpty() && busqueda.isBlank()) {
             item {
                 Text(
-                    text = "El catálogo está vacío. Escribe un nombre para crear tu primer ejercicio.",
+                    text = "No hay ejercicios. Escribe un nombre para crear uno personalizado.",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(vertical = 16.dp)

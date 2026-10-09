@@ -66,6 +66,22 @@ fun LogoMarca(modifier: Modifier = Modifier) {
 }
 
 @Composable
+fun AvisoInformativo(mensaje: String, modifier: Modifier = Modifier) {
+    Surface(
+        color = MaterialTheme.colorScheme.primaryContainer,
+        contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+        shape = MaterialTheme.shapes.small,
+        modifier = modifier
+    ) {
+        Text(
+            text = mensaje,
+            style = MaterialTheme.typography.bodyMedium,
+            modifier = Modifier.padding(14.dp)
+        )
+    }
+}
+
+@Composable
 fun AvisoError(mensaje: String, modifier: Modifier = Modifier) {
     Surface(
         color = MaterialTheme.colorScheme.errorContainer,

@@ -43,7 +43,7 @@ fun DialogoNuevoEntrenamiento(
                 Spacer(Modifier.height(16.dp))
                 CampoTexto(
                     valor = nombre,
-                    onCambio = { nombre = it },
+                    onCambio = { nombre = it.take(60) },
                     etiqueta = "Nombre (opcional)",
                     accionIme = ImeAction.Done,
                     alAccionIme = { onEmpezar(nombre) }

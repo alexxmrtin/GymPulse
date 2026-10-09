@@ -1,5 +1,6 @@
 package com.gympulse.backend.core;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
@@ -30,18 +31,19 @@ public class SeguridadConfig {
     @Bean
     public SecurityFilterChain cadenaDeFiltros(HttpSecurity http,
             RespuestaNoAutenticado respuestaNoAutenticado,
-            RespuestaAccesoDenegado respuestaAccesoDenegado) throws Exception {
+            RespuestaAccesoDenegado respuestaAccesoDenegado,
+            @Value("${gympulse.https-obligatorio:false}") boolean httpsObligatorio) throws Exception {
         http
                 .csrf(csrf -> csrf.disable())
                 .cors(Customizer.withDefaults())
                 .sessionManagement(sesion -> sesion.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-                .headers(cabeceras -> cabeceras.frameOptions(marcos -> marcos.sameOrigin()))
                 .httpBasic(basic -> basic.disable())
                 .formLogin(formulario -> formulario.disable())
 
                 .authorizeHttpRequests(peticiones -> peticiones
-                        .requestMatchers(HttpMethod.POST, "/usuario", "/usuario/login").permitAll()
-                        .requestMatchers("/h2-console/**").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/usuario", "/usuario/login", "/usuario/login/google",
+                                "/usuario/refresco", "/usuario/logout", "/usuario/verificacion/reenviar").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/usuario/verificar").permitAll()
                         .anyRequest().authenticated())
 
                 .oauth2ResourceServer(servidor -> servidor
@@ -52,6 +54,10 @@ public class SeguridadConfig {
                 .exceptionHandling(errores -> errores
                         .authenticationEntryPoint(respuestaNoAutenticado)
                         .accessDeniedHandler(respuestaAccesoDenegado));
+
+        if (httpsObligatorio) {
+            http.redirectToHttps(Customizer.withDefaults());
+        }
 
         return http.build();
     }

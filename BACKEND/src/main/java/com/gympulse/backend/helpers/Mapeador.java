@@ -43,7 +43,8 @@ public final class Mapeador {
                 ejercicio.getId(),
                 ejercicio.getNombre(),
                 ejercicio.getDescripcion(),
-                ejercicio.getGrupoMuscular());
+                ejercicio.getGrupoMuscular(),
+                ejercicio.esPredefinido());
     }
 
     public static SerieDTO aDTO(Serie serie) {

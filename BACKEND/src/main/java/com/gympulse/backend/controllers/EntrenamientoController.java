@@ -4,6 +4,7 @@ import com.gympulse.backend.dtos.CrearEntrenamientoDTO;
 import com.gympulse.backend.dtos.EntrenamientoDTO;
 import com.gympulse.backend.helpers.UsuarioAutenticado;
 import com.gympulse.backend.services.EntrenamientoService;
+import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
@@ -28,7 +29,7 @@ public class EntrenamientoController {
     }
 
     @PostMapping
-    public ResponseEntity<EntrenamientoDTO> crear(@RequestBody CrearEntrenamientoDTO datos,
+    public ResponseEntity<EntrenamientoDTO> crear(@Valid @RequestBody CrearEntrenamientoDTO datos,
             @AuthenticationPrincipal Jwt token) {
         return ResponseEntity.ok(entrenamientoService.crear(datos, UsuarioAutenticado.id(token)));
     }

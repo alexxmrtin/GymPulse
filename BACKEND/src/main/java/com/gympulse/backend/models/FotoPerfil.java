@@ -1,5 +1,8 @@
 package com.gympulse.backend.models;
 
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
+
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
@@ -23,7 +26,8 @@ public class FotoPerfil {
     @JoinColumn(name = "usuario_id")
     private Usuario usuario;
 
-    @Column(nullable = false, length = TAMANO_MAXIMO)
+    @Column(nullable = false)
+    @JdbcTypeCode(SqlTypes.VARBINARY)
     private byte[] datos;
 
     @Column(nullable = false)

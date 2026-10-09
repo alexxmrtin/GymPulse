@@ -4,6 +4,7 @@ import com.gympulse.backend.dtos.CrearSerieDTO;
 import com.gympulse.backend.dtos.SerieDTO;
 import com.gympulse.backend.helpers.UsuarioAutenticado;
 import com.gympulse.backend.services.SerieService;
+import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
@@ -28,7 +29,7 @@ public class SerieController {
     }
 
     @PostMapping
-    public ResponseEntity<SerieDTO> crear(@RequestBody CrearSerieDTO datos,
+    public ResponseEntity<SerieDTO> crear(@Valid @RequestBody CrearSerieDTO datos,
             @AuthenticationPrincipal Jwt token) {
         return ResponseEntity.ok(serieService.crear(datos, UsuarioAutenticado.id(token)));
     }

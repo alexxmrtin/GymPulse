@@ -49,7 +49,12 @@ ManejadorErrores busca el @ExceptionHandler del tipo que coincida:
   RecursoNoEncontradoException    → 404 Not Found
   CredencialesInvalidasException  → 401 Unauthorized
   AccesoProhibidoException        → 403 Forbidden
+  MethodArgumentNotValidException → 400 Bad Request (falla @Valid en un DTO; lista todos los campos)
+  HttpMessageNotReadableException → 400 Bad Request (JSON mal formado)
   IllegalArgumentException        → 400 Bad Request
+  MultipartException              → 400 Bad Request (subida de foto mal enviada)
+  MaxUploadSizeExceededException  → 413 Content Too Large
+  DemasiadosIntentosException     → 429 Too Many Requests (con Retry-After)
   RuntimeException                → 500 Internal Server Error
         ↓
 El cliente recibe un JSON con esta estructura:

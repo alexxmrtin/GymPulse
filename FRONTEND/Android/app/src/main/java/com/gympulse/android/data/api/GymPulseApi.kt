@@ -6,7 +6,10 @@ import com.gympulse.android.data.modelo.CrearEntrenamientoPeticion
 import com.gympulse.android.data.modelo.CrearSeriePeticion
 import com.gympulse.android.data.modelo.Ejercicio
 import com.gympulse.android.data.modelo.Entrenamiento
+import com.gympulse.android.data.modelo.LoginGooglePeticion
 import com.gympulse.android.data.modelo.LoginPeticion
+import com.gympulse.android.data.modelo.Mensaje
+import com.gympulse.android.data.modelo.ReenviarVerificacionPeticion
 import com.gympulse.android.data.modelo.RegistroPeticion
 import com.gympulse.android.data.modelo.Serie
 import com.gympulse.android.data.modelo.Sesion
@@ -25,10 +28,16 @@ import retrofit2.http.Query
 interface GymPulseApi {
 
     @POST("usuario")
-    suspend fun registrar(@Body datos: RegistroPeticion): Usuario
+    suspend fun registrar(@Body datos: RegistroPeticion): Mensaje
+
+    @POST("usuario/verificacion/reenviar")
+    suspend fun reenviarVerificacion(@Body datos: ReenviarVerificacionPeticion): Mensaje
 
     @POST("usuario/login")
     suspend fun login(@Body credenciales: LoginPeticion): Sesion
+
+    @POST("usuario/login/google")
+    suspend fun loginConGoogle(@Body datos: LoginGooglePeticion): Sesion
 
     @GET("usuario/{id}")
     suspend fun usuario(@Path("id") id: Long): Usuario

@@ -118,7 +118,7 @@ class FotoPerfilTests {
         mvc.perform(post("/usuario")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"username\":\"%s\",\"email\":\"%s\",\"password\":\"secreta\"}".formatted(nombre, email)))
-                .andExpect(status().isOk());
+                .andExpect(status().isAccepted());
 
         String respuesta = mvc.perform(post("/usuario/login")
                 .contentType(MediaType.APPLICATION_JSON)

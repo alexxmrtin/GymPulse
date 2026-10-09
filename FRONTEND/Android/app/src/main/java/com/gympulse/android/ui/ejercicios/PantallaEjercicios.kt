@@ -1,5 +1,8 @@
 package com.gympulse.android.ui.ejercicios
 
+import androidx.compose.ui.draw.clip
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -91,6 +94,7 @@ fun PantallaEjercicios(
                 relleno = relleno,
                 onBusqueda = viewModel::onBusqueda,
                 onGrupo = viewModel::onGrupo,
+                onSoloPersonalizados = viewModel::onSoloPersonalizados,
                 onSeleccionar = { detalleId = it.id }
             )
 
@@ -138,13 +142,15 @@ private fun ListaEjercicios(
     relleno: PaddingValues,
     onBusqueda: (String) -> Unit,
     onGrupo: (String) -> Unit,
+    onSoloPersonalizados: () -> Unit,
     onSeleccionar: (Ejercicio) -> Unit
 ) {
     val grupos = remember(lista) { lista.mapNotNull { it.grupoMuscular }.distinct().sorted() }
     val visibles = remember(lista, filtro) {
         lista.filter { ejercicio ->
             ejercicio.nombre.contains(filtro.busqueda.trim(), ignoreCase = true) &&
-                (filtro.grupo == null || ejercicio.grupoMuscular == filtro.grupo)
+                (filtro.grupo == null || ejercicio.grupoMuscular == filtro.grupo) &&
+                (!filtro.soloPersonalizados || !ejercicio.predefinido)
         }
     }
 
@@ -162,16 +168,21 @@ private fun ListaEjercicios(
             )
         }
 
-        if (grupos.isNotEmpty()) {
-            item {
-                LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    items(grupos) { grupo ->
-                        FilterChip(
-                            selected = filtro.grupo == grupo,
-                            onClick = { onGrupo(grupo) },
-                            label = { Text(grupo) }
-                        )
-                    }
+        item {
+            LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                item {
+                    FilterChip(
+                        selected = filtro.soloPersonalizados,
+                        onClick = onSoloPersonalizados,
+                        label = { Text("Personalizados") }
+                    )
+                }
+                items(grupos) { grupo ->
+                    FilterChip(
+                        selected = filtro.grupo == grupo,
+                        onClick = { onGrupo(grupo) },
+                        label = { Text(grupo) }
+                    )
                 }
             }
         }
@@ -183,7 +194,7 @@ private fun ListaEjercicios(
                 EstadoVacio(
                     icono = Icons.Rounded.FitnessCenter,
                     titulo = "Catálogo vacío",
-                    descripcion = "Crea tus ejercicios con el botón «Nuevo» para poder usarlos en tus entrenos."
+                    descripcion = "No se ha podido cargar ningún ejercicio. Puedes crear los tuyos con «Nuevo»."
                 )
             }
 
@@ -191,7 +202,11 @@ private fun ListaEjercicios(
                 EstadoVacio(
                     icono = Icons.Rounded.SearchOff,
                     titulo = "Sin resultados",
-                    descripcion = "Ningún ejercicio coincide con la búsqueda."
+                    descripcion = if (filtro.soloPersonalizados) {
+                        "Aún no tienes ejercicios personalizados que coincidan. Créalos con «Nuevo»."
+                    } else {
+                        "Ningún ejercicio coincide con la búsqueda."
+                    }
                 )
             }
 
@@ -207,12 +222,19 @@ private fun FilaEjercicio(ejercicio: Ejercicio, onClick: () -> Unit) {
     Tarjeta(onClick = onClick, relleno = PaddingValues(horizontal = 16.dp, vertical = 14.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
-                Text(
-                    text = ejercicio.nombre,
-                    style = MaterialTheme.typography.bodyLarge,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = ejercicio.nombre,
+                        style = MaterialTheme.typography.bodyLarge,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f, fill = false)
+                    )
+                    if (!ejercicio.predefinido) {
+                        Spacer(Modifier.width(8.dp))
+                        EtiquetaPersonalizado()
+                    }
+                }
                 val detalle = listOfNotNull(ejercicio.grupoMuscular, ejercicio.descripcion?.takeIf { it.isNotBlank() })
                 if (detalle.isNotEmpty()) {
                     Text(
@@ -232,4 +254,17 @@ private fun FilaEjercicio(ejercicio: Ejercicio, onClick: () -> Unit) {
             )
         }
     }
+}
+
+@Composable
+fun EtiquetaPersonalizado(modifier: Modifier = Modifier) {
+    Text(
+        text = "Personalizado",
+        style = MaterialTheme.typography.labelSmall,
+        color = MaterialTheme.colorScheme.primary,
+        modifier = modifier
+            .clip(MaterialTheme.shapes.extraSmall)
+            .background(MaterialTheme.colorScheme.primaryContainer)
+            .padding(horizontal = 6.dp, vertical = 2.dp)
+    )
 }

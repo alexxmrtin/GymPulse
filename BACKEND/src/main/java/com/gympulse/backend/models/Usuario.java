@@ -40,6 +40,17 @@ public class Usuario {
     private LocalDate fechaNacimiento;
     private Instant fotoActualizadaEn;
 
+    private Instant emailVerificadoEn;
+
+    @Column(unique = true)
+    private String googleId;
+
+    @Column(length = 64, unique = true)
+    private String verificacionHash;
+
+    private Instant verificacionExpiraEn;
+    private Instant verificacionEnviadaEn;
+
 
     @OneToMany(mappedBy = "usuario", cascade = CascadeType.ALL)
     private List<Entrenamiento> entrenamientos;
@@ -69,6 +80,21 @@ public class Usuario {
 
     public Instant getFotoActualizadaEn() { return fotoActualizadaEn; }
     public void setFotoActualizadaEn(Instant fotoActualizadaEn) { this.fotoActualizadaEn = fotoActualizadaEn; }
+
+    public Instant getEmailVerificadoEn() { return emailVerificadoEn; }
+    public void setEmailVerificadoEn(Instant emailVerificadoEn) { this.emailVerificadoEn = emailVerificadoEn; }
+
+    public String getGoogleId() { return googleId; }
+    public void setGoogleId(String googleId) { this.googleId = googleId; }
+
+    public String getVerificacionHash() { return verificacionHash; }
+    public void setVerificacionHash(String verificacionHash) { this.verificacionHash = verificacionHash; }
+
+    public Instant getVerificacionExpiraEn() { return verificacionExpiraEn; }
+    public void setVerificacionExpiraEn(Instant verificacionExpiraEn) { this.verificacionExpiraEn = verificacionExpiraEn; }
+
+    public Instant getVerificacionEnviadaEn() { return verificacionEnviadaEn; }
+    public void setVerificacionEnviadaEn(Instant verificacionEnviadaEn) { this.verificacionEnviadaEn = verificacionEnviadaEn; }
 
     public List<Entrenamiento> getEntrenamientos() { return entrenamientos; }
     public void setEntrenamientos(List<Entrenamiento> entrenamientos) { this.entrenamientos = entrenamientos; }

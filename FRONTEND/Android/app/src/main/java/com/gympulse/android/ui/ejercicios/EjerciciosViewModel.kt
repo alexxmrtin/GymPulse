@@ -2,7 +2,6 @@ package com.gympulse.android.ui.ejercicios
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.gympulse.android.data.api.codigoHttp
 import com.gympulse.android.data.api.mensajeParaUsuario
 import com.gympulse.android.data.repositorios.EjercicioRepositorio
 import com.gympulse.android.ui.comun.Cargador
@@ -20,7 +19,8 @@ val GRUPOS_MUSCULARES = listOf("Pecho", "Espalda", "Hombro", "Bíceps", "Trícep
 
 data class FiltroEjercicios(
     val busqueda: String = "",
-    val grupo: String? = null
+    val grupo: String? = null,
+    val soloPersonalizados: Boolean = false
 )
 
 sealed interface EventoEjercicios {
@@ -56,6 +56,8 @@ class EjerciciosViewModel(private val ejercicios: EjercicioRepositorio) : ViewMo
 
     fun onGrupo(grupo: String) = _filtro.update { it.copy(grupo = if (it.grupo == grupo) null else grupo) }
 
+    fun onSoloPersonalizados() = _filtro.update { it.copy(soloPersonalizados = !it.soloPersonalizados) }
+
     fun crear(nombre: String, grupoMuscular: String?, descripcion: String) {
         if (_guardando.value || nombre.isBlank()) return
         _guardando.value = true
@@ -80,12 +82,7 @@ class EjerciciosViewModel(private val ejercicios: EjercicioRepositorio) : ViewMo
                     _eventos.send(EventoEjercicios.Eliminado)
                 }
                 .onFailure { error ->
-                    val mensaje = if (error.codigoHttp() == 409) {
-                        "No se puede borrar: hay series registradas con este ejercicio"
-                    } else {
-                        error.mensajeParaUsuario()
-                    }
-                    _eventos.send(EventoEjercicios.Mensaje(mensaje))
+                    _eventos.send(EventoEjercicios.Mensaje(error.mensajeParaUsuario()))
                 }
         }
     }

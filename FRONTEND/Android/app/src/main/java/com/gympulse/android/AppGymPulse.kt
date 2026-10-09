@@ -2,9 +2,11 @@ package com.gympulse.android
 
 import android.app.Application
 import android.content.Context
+import androidx.credentials.CredentialManager
 import coil3.ImageLoader
 import coil3.SingletonImageLoader
 import coil3.network.okhttp.OkHttpNetworkFetcherFactory
+import com.gympulse.android.data.api.ApiSesion
 import com.gympulse.android.data.api.ClienteApi
 import com.gympulse.android.data.api.GymPulseApi
 import com.gympulse.android.data.perfil.FotoPerfilRepositorio
@@ -33,10 +35,12 @@ class Contenedor(aplicacion: Application) {
     val almacenSesion: AlmacenSesion = AlmacenSesion(aplicacion)
     val preferencias: AlmacenPreferencias = AlmacenPreferencias(aplicacion)
 
-    val clienteHttp: OkHttpClient = ClienteApi.crearClienteHttp(almacenSesion)
+    private val clienteBase: OkHttpClient = ClienteApi.crearClienteBase()
+    private val apiSesion: ApiSesion = ClienteApi.crearApiSesion(clienteBase)
+    val clienteHttp: OkHttpClient = ClienteApi.crearClienteHttp(clienteBase, almacenSesion, apiSesion)
     private val api: GymPulseApi = ClienteApi.crear(clienteHttp)
 
-    val usuarios = UsuarioRepositorio(api, almacenSesion)
+    val usuarios = UsuarioRepositorio(api, apiSesion, almacenSesion, CredentialManager.create(aplicacion))
     val fotoPerfil = FotoPerfilRepositorio(aplicacion, api, almacenSesion)
     val ejercicios = EjercicioRepositorio(api)
     val entrenamientos = EntrenamientoRepositorio(api)

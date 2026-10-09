@@ -20,7 +20,14 @@ data class Sesion(
     val token: String,
     val tipo: String,
     val expiraEnSegundos: Long,
+    val tokenRefresco: String,
+    val tokenRefrescoExpiraEnSegundos: Long,
     val usuario: Usuario
+)
+
+@Serializable
+data class RefrescoPeticion(
+    val tokenRefresco: String
 )
 
 @Serializable
@@ -32,6 +39,21 @@ data class RegistroPeticion(
     val altura: Double? = null,
     @Serializable(with = SerializadorLocalDate::class)
     val fechaNacimiento: LocalDate? = null
+)
+
+@Serializable
+data class Mensaje(
+    val mensaje: String
+)
+
+@Serializable
+data class ReenviarVerificacionPeticion(
+    val email: String
+)
+
+@Serializable
+data class LoginGooglePeticion(
+    val idToken: String
 )
 
 @Serializable

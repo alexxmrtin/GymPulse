@@ -20,15 +20,19 @@ private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(na
 
 enum class EstadoSesion { CARGANDO, ACTIVA, INACTIVA }
 
-class AlmacenSesion(private val context: Context) {
+class AlmacenSesion(private val context: Context) : GestorTokens {
 
     private val claveToken = stringPreferencesKey("token")
+    private val claveTokenRefresco = stringPreferencesKey("tokenRefresco")
     private val claveUsuarioId = longPreferencesKey("usuarioId")
 
     private val ambito = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     @Volatile
     private var tokenEnMemoria: String? = null
+
+    @Volatile
+    private var tokenRefrescoEnMemoria: String? = null
 
     @Volatile
     var usuarioId: Long? = null
@@ -40,24 +44,41 @@ class AlmacenSesion(private val context: Context) {
     suspend fun cargar() {
         val guardado = context.dataStore.data.first()
         tokenEnMemoria = guardado[claveToken]
+        tokenRefrescoEnMemoria = guardado[claveTokenRefresco]
         usuarioId = guardado[claveUsuarioId]
         _estado.value = if (tokenEnMemoria != null) EstadoSesion.ACTIVA else EstadoSesion.INACTIVA
     }
 
-    suspend fun guardar(token: String, usuarioId: Long) {
+    suspend fun guardar(token: String, tokenRefresco: String, usuarioId: Long) {
         tokenEnMemoria = token
+        tokenRefrescoEnMemoria = tokenRefresco
         this.usuarioId = usuarioId
         _estado.value = EstadoSesion.ACTIVA
         context.dataStore.edit { preferencias ->
             preferencias[claveToken] = token
+            preferencias[claveTokenRefresco] = tokenRefresco
             preferencias[claveUsuarioId] = usuarioId
         }
     }
 
-    fun token(): String? = tokenEnMemoria
+    override fun actualizarTokens(token: String, tokenRefresco: String) {
+        tokenEnMemoria = token
+        tokenRefrescoEnMemoria = tokenRefresco
+        ambito.launch {
+            context.dataStore.edit { preferencias ->
+                preferencias[claveToken] = token
+                preferencias[claveTokenRefresco] = tokenRefresco
+            }
+        }
+    }
 
-    fun invalidar() {
+    override fun token(): String? = tokenEnMemoria
+
+    override fun tokenRefresco(): String? = tokenRefrescoEnMemoria
+
+    override fun invalidar() {
         tokenEnMemoria = null
+        tokenRefrescoEnMemoria = null
         usuarioId = null
         _estado.value = EstadoSesion.INACTIVA
         ambito.launch {

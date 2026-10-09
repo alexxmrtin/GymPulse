@@ -1,6 +1,7 @@
 package com.gympulse.android.ui.registro
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -12,12 +13,15 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.systemBarsPadding
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.AlternateEmail
+import androidx.compose.material.icons.rounded.MarkEmailRead
 import androidx.compose.material.icons.rounded.Person
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -47,6 +51,11 @@ fun PantallaRegistro(
     viewModel: RegistroViewModel = viewModel(factory = RegistroViewModel.Fabrica)
 ) {
     val estado by viewModel.estado.collectAsStateWithLifecycle()
+
+    if (estado.correoEnviado) {
+        CorreoEnviado(email = estado.email.trim(), onIrALogin = onVolver)
+        return
+    }
 
     ContenidoRegistro(
         estado = estado,
@@ -97,7 +106,7 @@ private fun ContenidoRegistro(
 
             CampoTexto(
                 valor = estado.usuario,
-                onCambio = onUsuarioCambiado,
+                onCambio = { onUsuarioCambiado(it.take(30)) },
                 etiqueta = "Nombre de usuario",
                 icono = Icons.Rounded.Person
             )
@@ -168,6 +177,47 @@ private fun ContenidoRegistro(
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun CorreoEnviado(email: String, onIrALogin: () -> Unit) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .systemBarsPadding()
+            .padding(24.dp),
+        verticalArrangement = Arrangement.Center
+    ) {
+        Box(
+            modifier = Modifier
+                .size(72.dp)
+                .background(MaterialTheme.colorScheme.primaryContainer, CircleShape),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = Icons.Rounded.MarkEmailRead,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(36.dp)
+            )
+        }
+        Spacer(Modifier.height(28.dp))
+        Text(text = "Revisa tu correo", style = MaterialTheme.typography.headlineLarge)
+        Spacer(Modifier.height(12.dp))
+        Text(
+            text = "Te hemos enviado un enlace a $email para activar la cuenta. Ábrelo y después inicia sesión.",
+            style = MaterialTheme.typography.bodyLarge,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        Spacer(Modifier.height(8.dp))
+        Text(
+            text = "Si no lo ves, mira en la carpeta de spam. Desde el login puedes pedir que te lo reenviemos.",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.outline
+        )
+        Spacer(Modifier.height(32.dp))
+        BotonPrincipal(texto = "Ir a iniciar sesión", onClick = onIrALogin)
     }
 }
 

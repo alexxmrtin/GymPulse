@@ -17,7 +17,7 @@ todos los mismos endpoints.
 | Framework | Spring Boot 4.1.0 |
 | Lenguaje | Java 21 |
 | Build | Maven (sin wrapper; `mvn` del sistema, vía SDKMAN) |
-| Base de datos | H2 embebida en archivo → PostgreSQL en el futuro |
+| Base de datos | PostgreSQL 17 (Docker en local) |
 | ORM | Hibernate, a través de Spring Data JPA |
 | Seguridad | Spring Security + JWT firmado con HS256 |
 | JSON | Jackson 3 (ojo: paquete `tools.jackson`, no `com.fasterxml`) |
@@ -27,14 +27,16 @@ todos los mismos endpoints.
 
 ```bash
 cd BACKEND
-cp .env.example .env                              # solo la primera vez
-echo "JWT_SECRETO=$(openssl rand -base64 48)" > .env
+echo "JWT_SECRETO=$(openssl rand -base64 48)" > .env          # solo la primera vez
+echo "POSTGRES_USUARIO=gympulse" >> .env
+echo "POSTGRES_CONTRASENA=$(openssl rand -hex 16)" >> .env
+docker compose up -d                                          # PostgreSQL (o podman compose)
 mvn spring-boot:run
 ```
 
-Queda escuchando en `http://localhost:8080`. La consola de la base de datos está en
-`http://localhost:8080/h2-console` (JDBC URL `jdbc:h2:file:./data/gympulse`, usuario `sa`, sin
-contraseña).
+Queda escuchando en `http://localhost:8080`. La base de datos se consulta con
+`docker exec -it gympulse-postgres psql -U gympulse gympulse` o con un cliente gráfico contra
+`localhost:5432`.
 
 Otros comandos: `mvn test`, `mvn clean package` (genera el jar en `target/`).
 
@@ -51,7 +53,7 @@ com.gympulse.backend/
 ├── repositories/   Interfaces que Spring convierte en consultas SQL.
 ├── models/         Entidades JPA. Son las tablas de la base de datos.
 ├── dtos/           Records con la forma del JSON que entra y sale.
-├── helpers/        Utilidades sin estado: mapeo, validaciones, id del token.
+├── helpers/        Utilidades sin estado: mapeo, id del token, tipo de imagen.
 ├── core/           Configuración: seguridad, JWT, CORS y manejo de errores.
 └── middlewares/    Vacía (queda del esqueleto inicial).
 ```
@@ -75,7 +77,8 @@ entidades de `models/` **nunca salen** por la API: se convierten a DTO antes.
    este proyecto casi no verás `new`: los objetos los crea y los reparte Spring.
 3. Lee `application.properties`, y con él importa el `.env`. Si falta `JWT_SECRETO`,
    **la aplicación no arranca** (ver [Configuración](#8-configuración)).
-4. Hibernate lee las clases de `models/` y crea o actualiza las tablas (`ddl-auto=update`).
+4. Hibernate lee las clases de `models/` y crea o actualiza las tablas en PostgreSQL
+   (`ddl-auto=update`): añade las tablas y columnas que falten, sin borrar datos.
 5. Se monta la cadena de filtros de seguridad definida en `core/SeguridadConfig.java`.
 6. Arranca el Tomcat embebido en el puerto 8080.
 
@@ -96,11 +99,12 @@ FILTROS DE SEGURIDAD ....................... core/SeguridadConfig.java
    │
    ▼
 UsuarioController.login .................... controllers/UsuarioController.java
-   └─ @RequestBody convierte el JSON en un LoginDTO
+   ├─ @RequestBody convierte el JSON en un LoginDTO
+   └─ @Valid comprueba sus anotaciones (@NotBlank)  → 400 si faltan
    │
    ▼
 UsuarioService.autenticar .................. services/UsuarioService.java
-   ├─ Validaciones.exigirTexto(email, password)      → 400 si faltan
+   ├─ LimiteIntentosService.comprobar(email, ip)     → 429 si está bloqueado
    ├─ usuarioRepository.findByEmail(...)             → 401 si no existe
    ├─ passwordEncoder.matches(password, hash)        → 401 si no cuadra
    │
@@ -283,14 +287,28 @@ versión para listas porque `List<Usuario>` y `List<Serie>` son el mismo tipo en
 ejecución (*type erasure*) y chocarían; por eso los servicios hacen
 `.stream().map(Mapeador::aDTO).toList()`.
 
-### `helpers/Validaciones.java`
+### Validación de la entrada (`spring-boot-starter-validation`)
 
-Dos métodos, `exigirTexto` y `exigirValor`, que lanzan `IllegalArgumentException` → 400 con el
-nombre del campo que falta. Existen para no depender de que reviente la restricción `NOT NULL` de
-la tabla, que daría un 500 sin explicación.
+Las reglas de los datos que entran van **anotadas en los propios DTOs**, con Bean Validation:
 
-Es una solución provisional: lo idiomático es `spring-boot-starter-validation` con `@NotBlank`
-sobre los DTOs. Está en la lista de pendientes.
+| DTO | Reglas |
+|---|---|
+| `RegistroUsuarioDTO` | `username` obligatorio (máx. 30), `email` con formato válido, `password` de 6 a 72 caracteres, peso y altura `@Positive`, fecha de nacimiento `@Past` |
+| `ActualizarUsuarioDTO` | Peso y altura `@Positive`, fecha de nacimiento `@Past` |
+| `LoginDTO` | Email y contraseña `@NotBlank` |
+| `CrearEjercicioDTO` | Nombre obligatorio (máx. 60), descripción máx. 255 |
+| `CrearEntrenamientoDTO` | Fecha `@NotNull`, nombre máx. 60 |
+| `CrearSerieDTO` | Ids obligatorios, repeticiones `@Min(1)`, peso `@PositiveOrZero` |
+
+El controlador pone `@Valid` delante de `@RequestBody`. Spring valida **antes de entrar en el
+método**, y si algo falla lanza `MethodArgumentNotValidException`. `ManejadorErrores` la convierte
+en un 400 con **todos** los errores juntos: `"email: no es un email valido; password: debe tener
+entre 6 y 72 caracteres"`. Así los servicios solo contienen reglas de negocio (duplicados,
+propiedad…).
+
+La contraseña tiene máximo 72 porque BCrypt ignora lo que pase de 72 bytes. La app comprueba lo
+mismo para avisar antes, pero la validación que cuenta es la del backend: la API la puede llamar
+cualquiera, no solo la app.
 
 ---
 
@@ -301,7 +319,7 @@ sobre los DTOs. Está en la lista de pendientes.
 | Método | Qué comprueba |
 |---|---|
 | `registrar` | Campos obligatorios → 400. Email ya usado → 409. Username ya usado → 409. **Cifra la contraseña con BCrypt** antes de guardar |
-| `autenticar` | Busca por email y compara con `passwordEncoder.matches`. Cualquier fallo → 401 con el mismo mensaje (no distingue "no existe" de "contraseña mala", para no revelar qué emails están registrados). Si cuadra, pide el token a `TokenService` |
+| `autenticar` | Pasa por el límite de intentos, busca por email y compara con `passwordEncoder.matches`. Cualquier fallo → 401 con el mismo mensaje (no distingue "no existe" de "contraseña mala"). Si el email no existe, **compara igualmente contra un hash ficticio** generado al arrancar: sin eso, esa respuesta sería unos 80 ms más rápida y midiendo tiempos se sabría qué emails están registrados. Si cuadra, emite el JWT y el token de refresco |
 | `buscarPorId` / `actualizar` / `eliminar` | `exigirQueSeaElMismo(id, idDelToken)` → **403 si intentas tocar la cuenta de otro** |
 
 Sobre BCrypt: la contraseña **no se cifra, se hashea**. No hay forma de recuperarla. Al hacer
@@ -323,6 +341,66 @@ Construye y firma el JWT. Los *claims* que mete:
 
 **Nunca metas nada secreto en un JWT**: no está cifrado, solo firmado, y cualquiera puede leer su
 contenido con un Base64.
+
+### `VerificadorTokenGoogle` y el login con Google
+
+La app obtiene de Google un **ID token** (un JWT firmado por Google con RS256) y lo manda a
+`POST /usuario/login/google`. `VerificadorTokenGoogle` lo comprueba con un `NimbusJwtDecoder`
+apuntado al JWK Set de Google (`https://www.googleapis.com/oauth2/v3/certs`, que Nimbus cachea y
+renueva cuando Google rota claves) y estos validadores: caducidad, `iss` de Google, `aud` igual a
+`gympulse.google.client-id` (sin esto valdría un token emitido para otra app) y `email_verified`.
+No es un bean `JwtDecoder` para no chocar con el que valida nuestros propios tokens.
+
+`UsuarioService.loginConGoogle` sigue tres caminos: usuario con ese `google_id` → entra; usuario con
+ese email → se vincula (si no había verificado el email, se anula su contraseña y se revocan sus
+sesiones, contra el *pre-hijacking*); ninguno → se crea ya verificado, con un `username` sacado del
+nombre de Google y una contraseña aleatoria que nadie conoce (la columna `password` es
+`NOT NULL`; se decidió así cuando el esquema aún lo generaba Hibernate). Devuelve la misma `SesionDTO` que el login normal.
+
+Tests: `VerificadorTokenGoogleTest` firma tokens con una clave RSA propia para probar cada
+rechazo (otra app, otro emisor, otra clave, caducado, email sin verificar) y `LoginGoogleTests`
+simula el verificador para probar crear, volver a entrar y vincular.
+
+### `VerificacionEmailService` y `CorreoService`
+
+El registro deja la cuenta **sin verificar** (`emailVerificadoEn` vacío) y genera un token
+aleatorio del que solo se guarda el hash en `usuarios.verificacion_hash`, con caducidad de 24 h.
+El enlace `GET /usuario/verificar?token=...` marca el email como verificado y borra el token, así
+que solo sirve una vez. Mientras no se verifique, el login responde 403 (solo después de comprobar
+la contraseña, para no dar esa información a quien no la sabe).
+
+Para que el registro no delate qué emails existen, **responde siempre 202 con el mismo mensaje**:
+si el email ya estaba, no crea nada y manda al dueño un correo de aviso, y además hace el hash de
+BCrypt igualmente para que tarde lo mismo. Reenviar el correo también responde siempre igual y
+tiene una espera de un minuto entre envíos.
+
+`CorreoService` envía con `@Async` (otro hilo, gracias a `@EnableAsync` en `core/AsincroniaConfig`),
+así que el correo nunca retrasa la respuesta. Si no hay `spring.mail.host` configurado, no existe
+`JavaMailSender` y el correo se **escribe en el log** con el enlace: es lo que pasa en local. Con
+`gympulse.registro.verificar-email=false` (lo usan los tests) las cuentas nacen verificadas.
+
+### `LimiteIntentosService`
+
+Frena la fuerza bruta en el login. Lleva en memoria (`ConcurrentHashMap`) dos contadores de
+fallos: uno por email, en minúsculas, y otro por IP. Al llegar al máximo dentro de la ventana,
+esa clave queda bloqueada y `UsuarioService.autenticar` lanza `DemasiadosIntentosException` (429
+con `Retry-After`) **antes** de comprobar la contraseña. Un login correcto borra el contador del
+email. Los emails que no existen cuentan igual, para no delatar cuáles están registrados.
+Recibe un `Clock` para poder probar la caducidad sin esperar (`LimiteIntentosServiceTest`).
+
+### `TokenRefrescoService`
+
+Emite, rota y revoca los tokens de refresco (tabla `tokens_refresco`):
+
+- **Emitir:** genera 32 bytes aleatorios con `SecureRandom`, los devuelve en Base64 y guarda solo
+  su **hash SHA-256**. Si alguien se lleva la BD, no puede usar los tokens. De paso borra los ya
+  caducados de ese usuario.
+- **Rotar:** busca el token por su hash. Si está revocado, es una **reutilización**: alguien está
+  usando un token que ya se cambió, así que se revocan todas las sesiones del usuario y se responde
+  401. Si no, lo marca como revocado y emite uno nuevo. Usa `noRollbackFor` para que la revocación
+  masiva se guarde aunque la petición acabe en error.
+- **Revocar:** el logout. No falla si el token no existe.
+- **Borrar todos:** al eliminar la cuenta, antes de borrar el usuario, por la clave foránea.
 
 ### `EjercicioService`
 
@@ -367,15 +445,27 @@ el sitio equivocado.
 
 | Método | Ruta | Token | Cuerpo | Devuelve |
 |---|---|---|---|---|
-| POST | `/usuario` | **no** | `RegistroUsuarioDTO` | `UsuarioDTO` |
-| POST | `/usuario/login` | **no** | `LoginDTO` | `SesionDTO` |
+| POST | `/usuario` | **no** | `RegistroUsuarioDTO` | 202 + `MensajeDTO`, siempre el mismo |
+| GET | `/usuario/verificar?token=` | **no** | — | Página HTML: verificado (200) o enlace no válido (400) |
+| POST | `/usuario/verificacion/reenviar` | **no** | `ReenviarVerificacionDTO` | 202 + `MensajeDTO`, siempre el mismo |
+| POST | `/usuario/login` | **no** | `LoginDTO` | `SesionDTO` (acceso + refresco) |
+| POST | `/usuario/login/google` | **no** | `LoginGoogleDTO` | `SesionDTO`; crea o vincula la cuenta |
+| POST | `/usuario/refresco` | **no** | `RefrescoDTO` | `SesionDTO` nueva; el token usado deja de valer |
+| POST | `/usuario/logout` | **no** | `RefrescoDTO` | 204 |
 | GET | `/usuario/{id}` | sí, propio | — | `UsuarioDTO` |
 | PUT | `/usuario/{id}` | sí, propio | `ActualizarUsuarioDTO` | `UsuarioDTO` |
 | DELETE | `/usuario/{id}` | sí, propio | — | 204 |
-| POST | `/ejercicio` | sí | `CrearEjercicioDTO` | `EjercicioDTO` |
-| GET | `/ejercicio` | sí | — | Lista. Acepta `?nombre=` o `?grupoMuscular=` |
-| GET | `/ejercicio/{id}` | sí | — | `EjercicioDTO` |
-| DELETE | `/ejercicio/{id}` | sí | — | 204 |
+| PUT | `/usuario/{id}/foto` | sí, propio | multipart, campo `foto` | `UsuarioDTO` |
+| GET | `/usuario/{id}/foto` | sí, propio | — | La imagen, o 404 |
+| DELETE | `/usuario/{id}/foto` | sí, propio | — | 204 |
+| POST | `/ejercicio` | sí | `CrearEjercicioDTO` | `EjercicioDTO` personalizado, a nombre del usuario |
+| GET | `/ejercicio` | sí | — | Predefinidos + propios. Acepta `?nombre=` o `?grupoMuscular=` |
+| GET | `/ejercicio/{id}` | sí, predefinido o propio | — | `EjercicioDTO` (con `predefinido`) |
+| DELETE | `/ejercicio/{id}` | sí, propio | — | 204; 403 si es predefinido, 409 si tiene series |
+
+Los ejercicios con `usuario_id` vacío son los **predefinidos**: los crea `core/CatalogoPredefinido`
+al arrancar, solo si no existen, y nadie puede borrarlos. Los de otros usuarios responden 404,
+también al intentar usarlos en una serie.
 | POST | `/entrenamiento` | sí | `CrearEntrenamientoDTO` | `EntrenamientoDTO` |
 | GET | `/entrenamiento` | sí | — | Mis entrenamientos, por fecha descendente |
 | GET | `/entrenamiento/{id}` | sí, propio | — | `EntrenamientoDTO` con sus series |
@@ -420,11 +510,6 @@ sesión el servidor **recuerda** quién eres; con JWT no recuerda nada y el toke
 eres, firmado. Por eso puedes reiniciar el backend sin desloguear a nadie.
 
 ```java
-.headers(... frameOptions.sameOrigin())
-```
-Necesario solo para que funcione la consola de H2, que va dentro de iframes.
-
-```java
 .httpBasic(disable).formLogin(disable)
 ```
 Quita la ventanita del navegador y la página de login que Spring monta sola. No las queremos:
@@ -432,8 +517,9 @@ autenticamos con `POST /usuario/login`.
 
 ```java
 .authorizeHttpRequests(...)
-    .requestMatchers(POST, "/usuario", "/usuario/login").permitAll()
-    .requestMatchers("/h2-console/**").permitAll()
+    .requestMatchers(POST, "/usuario", "/usuario/login", "/usuario/login/google",
+                     "/usuario/refresco", "/usuario/logout", "/usuario/verificacion/reenviar").permitAll()
+    .requestMatchers(GET, "/usuario/verificar").permitAll()
     .anyRequest().authenticated()
 ```
 Aquí se decide qué está abierto. **El orden importa**: gana la primera regla que encaje.
@@ -508,13 +594,17 @@ Las dos últimas escriben el JSON a mano porque cuando saltan **todavía no hay 
 
 | Código | Excepción | Cuándo |
 |---|---|---|
-| 400 | `IllegalArgumentException` | Falta un campo obligatorio |
+| 400 | `MethodArgumentNotValidException` | Algún campo no cumple las anotaciones del DTO; lista todos |
+| 400 | `HttpMessageNotReadableException` | El cuerpo no es un JSON válido o un campo tiene un tipo incorrecto |
+| 400 | `IllegalArgumentException` | La imagen subida no es JPEG, PNG ni WebP |
 | 401 | `CredencialesInvalidasException` | Email o contraseña incorrectos |
 | 401 | (filtro) | Token ausente, caducado o manipulado |
 | 403 | `AccesoProhibidoException` | Intentas operar sobre la cuenta de otro |
 | 404 | `RecursoNoEncontradoException` | No existe, **o es de otro usuario** |
 | 409 | `ConflictoException` | Email o username duplicados |
 | 409 | `DataIntegrityViolationException` | Borrar algo que aún está referenciado |
+| 413 | `MaxUploadSizeExceededException` | La foto supera los 5 MB |
+| 429 | `DemasiadosIntentosException` | Login bloqueado por demasiados fallos; añade `Retry-After` |
 | 500 | `RuntimeException` | Cualquier otra cosa |
 
 Para añadir un error nuevo: crea la clase en `exceptions/` extendiendo `RuntimeException`, añade
@@ -532,11 +622,26 @@ Detalle: los `@ExceptionHandler` se eligen del más específico al más general,
 | Propiedad | Qué hace |
 |---|---|
 | `spring.config.import=optional:file:.env[.properties]` | Carga el `.env` como propiedades. `optional:` = si no existe, arranca igual (en producción las variables vienen del entorno). La sintaxis `[.properties]` le dice el formato, porque el archivo no tiene extensión |
-| `spring.datasource.url=jdbc:h2:file:./data/gympulse` | H2 **en archivo**: los datos sobreviven a los reinicios |
-| `spring.jpa.hibernate.ddl-auto=update` | Hibernate crea y actualiza tablas según las entidades, sin borrar datos |
-| `spring.h2.console.enabled=true` | Consola web en `/h2-console`. En Spring Boot 4 necesita además el módulo `spring-boot-h2console` en el `pom.xml` |
+| `spring.datasource.url=jdbc:postgresql://localhost:5432/gympulse` | PostgreSQL local del `docker-compose.yml`; usuario y contraseña salen del `.env` (`POSTGRES_USUARIO`, `POSTGRES_CONTRASENA`) |
+| `spring.jpa.hibernate.ddl-auto=update` | Hibernate crea y actualiza las tablas según las entidades, sin borrar datos. Solo añade: renombrar o quitar columnas hay que hacerlo a mano |
 | `gympulse.jwt.secreto=${JWT_SECRETO}` | **Sin valor por defecto a propósito**: si falta, la app no arranca |
-| `gympulse.jwt.duracion-minutos=720` | 12 horas |
+| `gympulse.jwt.duracion-minutos=15` | Vida del token de acceso |
+| `gympulse.jwt.refresco-dias=30` | Vida del token de refresco |
+| `spring.servlet.multipart.max-file-size=5MB` | Tamaño máximo de la foto de perfil |
+| `gympulse.login.max-fallos-email=5` / `max-fallos-ip=20` | Fallos de login que provocan el bloqueo, por email y por IP |
+| `gympulse.login.ventana-minutos=15` / `bloqueo-minutos=15` | En cuánto tiempo se cuentan los fallos y cuánto dura el bloqueo |
+| `gympulse.google.client-id=...` | ID del cliente Web de Google: el `aud` que deben llevar los ID tokens |
+| `gympulse.registro.verificar-email=true` | Exigir verificar el email antes de poder entrar |
+| `gympulse.registro.verificacion-horas=24` | Caducidad del enlace de verificación |
+| `gympulse.url-publica=http://localhost:8080` | Base de los enlaces que van en los correos |
+
+### Perfil de producción (`application-prod.properties`)
+
+Se activa con `SPRING_PROFILES_ACTIVE=prod` y se suma a la configuración normal. Apaga `show-sql`, baja los logs a INFO, activa
+`gympulse.https-obligatorio` (`http.redirectToHttps`) con `server.forward-headers-strategy` para
+funcionar detrás de un proxy que termine TLS, limita CORS a `GYMPULSE_CORS_ORIGENES` y toma la base de datos (`DATABASE_URL`,
+`DATABASE_USUARIO`, `DATABASE_CONTRASENA`) y el SMTP de variables de entorno. Si falta alguna, la app no arranca. `PerfilProduccionTests`
+comprueba la redirección a HTTPS, que sin token responde 401 y el CORS.
 | `spring.jpa.show-sql=true` | Imprime el SQL que genera Hibernate |
 | `logging.level.com.gympulse=DEBUG` | Detalle en nuestro código, INFO en el resto |
 
@@ -556,8 +661,9 @@ valer al instante.
 ### Tests
 
 `src/test/resources/application.properties` **sustituye entera** a la de `main` cuando corres
-`mvn test`, porque se llaman igual. Usa H2 en memoria y un secreto ficticio, así que los tests no
-dependen del `.env` ni chocan con la aplicación arrancada.
+`mvn test`, porque se llaman igual. Usa **H2 en memoria en modo PostgreSQL** y un secreto ficticio:
+los tests no necesitan Docker ni el `.env`. Las tablas las crea Hibernate al empezar y las borra
+al terminar (`ddl-auto=create-drop`), así que cada ejecución arranca limpia.
 
 ---
 
@@ -600,8 +706,11 @@ Para ver el contenido de un token:
 - **Spring Boot 4 usa Jackson 3.** El paquete es `tools.jackson.databind`, no
   `com.fasterxml.jackson.databind`. Casi todo el código que encuentres por internet será de
   Jackson 2 y no compilará.
-- **H2 en modo archivo solo admite un proceso.** Si lanzas `mvn test` con la app arrancada, falla
-  con un error de dialecto de Hibernate que no menciona el bloqueo por ningún lado.
+- **`ddl-auto=update` solo añade.** Nunca quita un `NOT NULL`, ni renombra, ni borra columnas: si
+  cambias una entidad de esa forma, la tabla se queda como estaba y hay que retocarla a mano.
+- **`byte[]` grandes y PostgreSQL.** Si a un `byte[]` se le pone un `length` muy grande, Hibernate
+  lo trata como `BLOB`, que en PostgreSQL es un `oid` (los bytes van fuera de la tabla y no se
+  borran solos). Por eso `FotoPerfil.datos` lleva `@JdbcTypeCode(SqlTypes.VARBINARY)` → `bytea`.
 - **`mvn spring-boot:run` no recompila.** DevTools solo reinicia cuando algo actualiza
   `target/classes`; si editas y no compilas, sigues ejecutando el código viejo.
 - **Al tocar el `pom.xml`, recarga el proyecto en VS Code** (`Java: Reload Projects`). Si no, la
@@ -615,18 +724,14 @@ Para ver el contenido de un token:
 ## 14. Estado y pendientes
 
 Hecho: CRUD completo de las cuatro entidades, DTOs, contraseñas hasheadas, manejo de errores
-uniforme, autenticación con JWT y API cerrada con separación por usuario.
+uniforme, autenticación con JWT y API cerrada con separación por usuario, tokens de refresco con
+rotación y foto de perfil.
 
 Pendiente:
 
-- **Refresh tokens.** El token dura 12 horas porque no los hay; lo normal serían 15-60 minutos con
-  un refresh token largo para renovarlo sin volver a pedir la contraseña.
-- **`spring-boot-starter-validation`** con `@NotBlank`/`@NotNull` en los DTOs, para sustituir
-  `helpers/Validaciones.java`.
-- **Migrar a PostgreSQL.** Solo requiere cambiar el driver y la URL; la contraseña iría al `.env`.
 - **Devolver 201 en los POST** en lugar de 200.
-- **Tests de verdad.** Ahora mismo solo está el `contextLoads` que genera Spring Initializr.
-- **Login con Google (OAuth 2.0)**, si algún día interesa.
+- **Más tests.** Hay tests de integración de la foto de perfil (`FotoPerfilTests`) y de la sesión
+  (`SesionTests`); faltan los de ejercicios, entrenamientos y series.
 - Limpieza menor: `EntrenamientoRepository.findByUsuarioId` y `SerieRepository.findByEjercicioId`
   solo aparecen en su declaración, no los llama nadie. La carpeta `middlewares/` únicamente tiene
   un `.gitkeep`.

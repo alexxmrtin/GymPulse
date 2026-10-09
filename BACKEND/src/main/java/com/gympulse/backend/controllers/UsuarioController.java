@@ -1,5 +1,8 @@
 package com.gympulse.backend.controllers;
 
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.validation.Valid;
+
 import org.springframework.http.CacheControl;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -19,15 +22,26 @@ import org.springframework.web.multipart.MultipartFile;
 import com.gympulse.backend.dtos.ActualizarUsuarioDTO;
 import com.gympulse.backend.dtos.FotoDTO;
 import com.gympulse.backend.dtos.LoginDTO;
+import com.gympulse.backend.dtos.LoginGoogleDTO;
+import com.gympulse.backend.dtos.MensajeDTO;
+import com.gympulse.backend.dtos.RefrescoDTO;
 import com.gympulse.backend.dtos.RegistroUsuarioDTO;
+import com.gympulse.backend.dtos.ReenviarVerificacionDTO;
 import com.gympulse.backend.dtos.SesionDTO;
 import com.gympulse.backend.dtos.UsuarioDTO;
+import com.gympulse.backend.helpers.PaginasVerificacion;
 import com.gympulse.backend.helpers.UsuarioAutenticado;
 import com.gympulse.backend.services.UsuarioService;
+import com.gympulse.backend.services.VerificacionEmailService;
 
 /*
-POST /usuario               -> registrar un usuario nuevo
-POST /usuario/login         -> comprobar email y contrasena y devolver el token JWT
+POST /usuario               -> registrar un usuario nuevo (202: siempre la misma respuesta, el resto va por correo)
+GET  /usuario/verificar     -> abrir el enlace del correo de verificacion (devuelve una pagina HTML)
+POST /usuario/verificacion/reenviar -> volver a mandar el correo de verificacion
+POST /usuario/login         -> comprobar email y contrasena y devolver el token JWT y el de refresco
+POST /usuario/login/google  -> entrar con un ID token de Google (crea o vincula la cuenta) y devolver la sesion
+POST /usuario/refresco      -> cambiar un token de refresco por una sesion nueva (rota el de refresco)
+POST /usuario/logout        -> revocar el token de refresco
 GET  /usuario/{id}          -> obtener un usuario por id
 PUT  /usuario/{id}          -> actualizar datos del usuario
 DELETE /usuario/{id}        -> eliminar un usuario
@@ -40,11 +54,13 @@ DELETE /usuario/{id}/foto   -> quitar la foto de perfil
 @RequestMapping("/usuario")
 public class UsuarioController {
 
-    private final UsuarioService usuarioService; //Esto es necesario para inyectar la logica de negocio, en proyectos anteriores esta logica la hacias aqui directamente, en este proyecto hemos agregado una capa de abstraccion mas para facilitar el escalado del proyecto
+    private final UsuarioService usuarioService;
+    private final VerificacionEmailService verificacionEmail; //Esto es necesario para inyectar la logica de negocio, en proyectos anteriores esta logica la hacias aqui directamente, en este proyecto hemos agregado una capa de abstraccion mas para facilitar el escalado del proyecto
 
     //Contructor para el controlador
-    public UsuarioController(UsuarioService usuarioService) {
+    public UsuarioController(UsuarioService usuarioService, VerificacionEmailService verificacionEmail) {
         this.usuarioService = usuarioService;
+        this.verificacionEmail = verificacionEmail;
     }
 
     /*
@@ -54,13 +70,45 @@ public class UsuarioController {
      ResponseEntity permite controlar el codigo HTTP de la respuesta.
     */
     @PostMapping
-    public ResponseEntity<UsuarioDTO> registrar(@RequestBody RegistroUsuarioDTO datos) {
-        return ResponseEntity.ok(usuarioService.registrar(datos));
+    public ResponseEntity<MensajeDTO> registrar(@Valid @RequestBody RegistroUsuarioDTO datos) {
+        usuarioService.registrar(datos);
+        return ResponseEntity.accepted()
+                .body(new MensajeDTO("Si el email es valido, te hemos enviado un correo para activar la cuenta"));
+    }
+
+    @GetMapping(path = "/verificar", produces = MediaType.TEXT_HTML_VALUE)
+    public ResponseEntity<String> verificar(@RequestParam(required = false) String token) {
+        return verificacionEmail.verificar(token)
+                ? ResponseEntity.ok(PaginasVerificacion.EXITO)
+                : ResponseEntity.badRequest().body(PaginasVerificacion.ERROR);
+    }
+
+    @PostMapping("/verificacion/reenviar")
+    public ResponseEntity<MensajeDTO> reenviarVerificacion(@Valid @RequestBody ReenviarVerificacionDTO datos) {
+        verificacionEmail.reenviar(datos.email());
+        return ResponseEntity.accepted()
+                .body(new MensajeDTO("Si la cuenta existe y no esta verificada, te hemos reenviado el correo"));
     }
 
     @PostMapping("/login")
-    public ResponseEntity<SesionDTO> login(@RequestBody LoginDTO credenciales) {
-        return ResponseEntity.ok(usuarioService.autenticar(credenciales));
+    public ResponseEntity<SesionDTO> login(@Valid @RequestBody LoginDTO credenciales, HttpServletRequest peticion) {
+        return ResponseEntity.ok(usuarioService.autenticar(credenciales, peticion.getRemoteAddr()));
+    }
+
+    @PostMapping("/login/google")
+    public ResponseEntity<SesionDTO> loginConGoogle(@Valid @RequestBody LoginGoogleDTO datos) {
+        return ResponseEntity.ok(usuarioService.loginConGoogle(datos));
+    }
+
+    @PostMapping("/refresco")
+    public ResponseEntity<SesionDTO> refrescar(@RequestBody RefrescoDTO datos) {
+        return ResponseEntity.ok(usuarioService.refrescar(datos));
+    }
+
+    @PostMapping("/logout")
+    public ResponseEntity<Void> cerrarSesion(@RequestBody RefrescoDTO datos) {
+        usuarioService.cerrarSesion(datos);
+        return ResponseEntity.noContent().build();
     }
 
     /*
@@ -79,7 +127,7 @@ public class UsuarioController {
     */
     @PutMapping("/{id}")
     public ResponseEntity<UsuarioDTO> actualizar(@PathVariable Long id,
-            @RequestBody ActualizarUsuarioDTO datosNuevos,
+            @Valid @RequestBody ActualizarUsuarioDTO datosNuevos,
             @AuthenticationPrincipal Jwt token) {
         return ResponseEntity.ok(usuarioService.actualizar(id, datosNuevos, UsuarioAutenticado.id(token)));
     }

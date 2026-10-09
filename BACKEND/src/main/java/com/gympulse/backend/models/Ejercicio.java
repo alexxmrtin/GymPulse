@@ -4,9 +4,12 @@ import java.util.List;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
 
@@ -23,6 +26,10 @@ public class Ejercicio {
 
     private String descripcion;
     private String grupoMuscular;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "usuario_id")
+    private Usuario usuario;
 
     /*
      Un ejercicio puede aparecer en muchas series (de muchos entrenamientos distintos).
@@ -45,6 +52,11 @@ public class Ejercicio {
 
     public String getGrupoMuscular() { return grupoMuscular; }
     public void setGrupoMuscular(String grupoMuscular) { this.grupoMuscular = grupoMuscular; }
+
+    public Usuario getUsuario() { return usuario; }
+    public void setUsuario(Usuario usuario) { this.usuario = usuario; }
+
+    public boolean esPredefinido() { return usuario == null; }
 
     public List<Serie> getSeries() { return series; }
     public void setSeries(List<Serie> series) { this.series = series; }

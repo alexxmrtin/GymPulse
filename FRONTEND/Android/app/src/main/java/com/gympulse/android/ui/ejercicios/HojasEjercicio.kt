@@ -60,7 +60,7 @@ fun HojaNuevoEjercicio(
         ) {
             Text("Nuevo ejercicio", style = MaterialTheme.typography.titleLarge)
             Spacer(Modifier.height(16.dp))
-            CampoTexto(valor = nombre, onCambio = { nombre = it }, etiqueta = "Nombre")
+            CampoTexto(valor = nombre, onCambio = { nombre = it.take(60) }, etiqueta = "Nombre")
             Spacer(Modifier.height(16.dp))
             Text(
                 text = "Grupo muscular",
@@ -80,7 +80,7 @@ fun HojaNuevoEjercicio(
             Spacer(Modifier.height(12.dp))
             CampoTexto(
                 valor = descripcion,
-                onCambio = { descripcion = it },
+                onCambio = { descripcion = it.take(255) },
                 etiqueta = "Descripción (opcional)",
                 lineaUnica = false,
                 accionIme = ImeAction.Default
@@ -116,13 +116,14 @@ fun HojaDetalleEjercicio(
                 .padding(bottom = 20.dp)
         ) {
             Text(ejercicio.nombre, style = MaterialTheme.typography.headlineSmall)
-            ejercicio.grupoMuscular?.let {
-                Text(
-                    text = it,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.primary
-                )
-            }
+            Text(
+                text = listOfNotNull(
+                    ejercicio.grupoMuscular,
+                    if (ejercicio.predefinido) "Predefinido" else "Personalizado"
+                ).joinToString(" · "),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.primary
+            )
             Spacer(Modifier.height(12.dp))
             Text(
                 text = ejercicio.descripcion?.takeIf { it.isNotBlank() } ?: "Sin descripción.",
@@ -137,16 +138,18 @@ fun HojaDetalleEjercicio(
                     icono = Icons.AutoMirrored.Rounded.ShowChart,
                     modifier = Modifier.weight(1f)
                 )
-                OutlinedButton(
-                    onClick = onEliminar,
-                    shape = MaterialTheme.shapes.medium,
-                    modifier = Modifier.height(52.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Rounded.DeleteOutline,
-                        contentDescription = "Eliminar ejercicio",
-                        tint = MaterialTheme.colorScheme.error
-                    )
+                if (!ejercicio.predefinido) {
+                    OutlinedButton(
+                        onClick = onEliminar,
+                        shape = MaterialTheme.shapes.medium,
+                        modifier = Modifier.height(52.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Rounded.DeleteOutline,
+                            contentDescription = "Eliminar ejercicio",
+                            tint = MaterialTheme.colorScheme.error
+                        )
+                    }
                 }
             }
         }

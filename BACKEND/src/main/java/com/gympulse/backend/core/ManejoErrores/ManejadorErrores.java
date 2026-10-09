@@ -1,13 +1,19 @@
 package com.gympulse.backend.core.ManejoErrores;
 
 import java.time.LocalDateTime;
+import java.util.Comparator;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.validation.FieldError;
+import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.multipart.MaxUploadSizeExceededException;
@@ -17,6 +23,7 @@ import org.springframework.web.multipart.support.MissingServletRequestPartExcept
 import com.gympulse.backend.core.ManejoErrores.exceptions.AccesoProhibidoException;
 import com.gympulse.backend.core.ManejoErrores.exceptions.ConflictoException;
 import com.gympulse.backend.core.ManejoErrores.exceptions.CredencialesInvalidasException;
+import com.gympulse.backend.core.ManejoErrores.exceptions.DemasiadosIntentosException;
 import com.gympulse.backend.core.ManejoErrores.exceptions.RecursoNoEncontradoException;
 
 /*
@@ -57,6 +64,14 @@ public class ManejadorErrores {
                 .body(respuesta(401, ex.getMessage()));
     }
 
+    @ExceptionHandler(DemasiadosIntentosException.class)
+    public ResponseEntity<Map<String, Object>> manejarDemasiadosIntentos(DemasiadosIntentosException ex) {
+        return ResponseEntity
+                .status(HttpStatus.TOO_MANY_REQUESTS)
+                .header(HttpHeaders.RETRY_AFTER, String.valueOf(ex.getSegundosRestantes()))
+                .body(respuesta(429, ex.getMessage()));
+    }
+
     @ExceptionHandler(AccesoProhibidoException.class)
     public ResponseEntity<Map<String, Object>> manejarAccesoProhibido(AccesoProhibidoException ex) {
         log.warn("Acceso prohibido: {}", ex.getMessage());
@@ -71,6 +86,26 @@ public class ManejadorErrores {
         return ResponseEntity
                 .status(HttpStatus.CONFLICT)
                 .body(respuesta(409, "La operacion entra en conflicto con datos ya existentes"));
+    }
+
+    @ExceptionHandler(MethodArgumentNotValidException.class)
+    public ResponseEntity<Map<String, Object>> manejarDatosInvalidos(MethodArgumentNotValidException ex) {
+        String mensaje = ex.getBindingResult().getFieldErrors().stream()
+                .sorted(Comparator.comparing(FieldError::getField))
+                .map(error -> error.getField() + ": " + error.getDefaultMessage())
+                .collect(Collectors.joining("; "));
+        log.warn("Datos invalidos: {}", mensaje);
+        return ResponseEntity
+                .status(HttpStatus.BAD_REQUEST)
+                .body(respuesta(400, mensaje));
+    }
+
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    public ResponseEntity<Map<String, Object>> manejarJsonIlegible(HttpMessageNotReadableException ex) {
+        log.warn("Cuerpo de la peticion ilegible: {}", ex.getMessage());
+        return ResponseEntity
+                .status(HttpStatus.BAD_REQUEST)
+                .body(respuesta(400, "El cuerpo de la peticion no es un JSON valido o tiene tipos incorrectos"));
     }
 
     @ExceptionHandler(IllegalArgumentException.class)

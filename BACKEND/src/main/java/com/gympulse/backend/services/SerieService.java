@@ -11,11 +11,9 @@ import com.gympulse.backend.core.ManejoErrores.exceptions.RecursoNoEncontradoExc
 import com.gympulse.backend.dtos.CrearSerieDTO;
 import com.gympulse.backend.dtos.SerieDTO;
 import com.gympulse.backend.helpers.Mapeador;
-import com.gympulse.backend.helpers.Validaciones;
 import com.gympulse.backend.models.Ejercicio;
 import com.gympulse.backend.models.Entrenamiento;
 import com.gympulse.backend.models.Serie;
-import com.gympulse.backend.repositories.EjercicioRepository;
 import com.gympulse.backend.repositories.SerieRepository;
 
 @Service
@@ -24,28 +22,23 @@ public class SerieService {
     private static final Logger log = LoggerFactory.getLogger(SerieService.class);
 
     private final SerieRepository serieRepository;
-    private final EjercicioRepository ejercicioRepository;
+    private final EjercicioService ejercicioService;
     private final EntrenamientoService entrenamientoService;
 
     public SerieService(SerieRepository serieRepository,
-            EjercicioRepository ejercicioRepository,
+            EjercicioService ejercicioService,
             EntrenamientoService entrenamientoService) {
         this.serieRepository = serieRepository;
-        this.ejercicioRepository = ejercicioRepository;
+        this.ejercicioService = ejercicioService;
         this.entrenamientoService = entrenamientoService;
     }
 
     @Transactional
     public SerieDTO crear(CrearSerieDTO datos, Long usuarioId) {
-        Validaciones.exigirValor(datos.entrenamientoId(), "entrenamientoId");
-        Validaciones.exigirValor(datos.ejercicioId(), "ejercicioId");
-        Validaciones.exigirValor(datos.repeticiones(), "repeticiones");
-        Validaciones.exigirValor(datos.peso(), "peso");
 
         Entrenamiento entrenamiento = entrenamientoService.obtenerPropio(datos.entrenamientoId(), usuarioId);
 
-        Ejercicio ejercicio = ejercicioRepository.findById(datos.ejercicioId())
-                .orElseThrow(() -> new RecursoNoEncontradoException("Ejercicio no encontrado"));
+        Ejercicio ejercicio = ejercicioService.obtenerVisible(datos.ejercicioId(), usuarioId);
 
         Serie serie = new Serie();
         serie.setEntrenamiento(entrenamiento);

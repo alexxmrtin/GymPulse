@@ -13,6 +13,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 const val LONGITUD_MINIMA_CONTRASENA = 6
+const val LONGITUD_MAXIMA_CONTRASENA = 72
 
 data class EstadoRegistro(
     val usuario: String = "",
@@ -20,15 +21,19 @@ data class EstadoRegistro(
     val contrasena: String = "",
     val repetirContrasena: String = "",
     val cargando: Boolean = false,
-    val error: String? = null
+    val error: String? = null,
+    val correoEnviado: Boolean = false
 ) {
     val errorEmail: String?
         get() = if (email.isNotBlank() && !Patterns.EMAIL_ADDRESS.matcher(email.trim()).matches()) "Email no válido" else null
 
     val errorContrasena: String?
-        get() = if (contrasena.isNotEmpty() && contrasena.length < LONGITUD_MINIMA_CONTRASENA) {
-            "Mínimo $LONGITUD_MINIMA_CONTRASENA caracteres"
-        } else null
+        get() = when {
+            contrasena.isNotEmpty() && contrasena.length < LONGITUD_MINIMA_CONTRASENA ->
+                "Mínimo $LONGITUD_MINIMA_CONTRASENA caracteres"
+            contrasena.length > LONGITUD_MAXIMA_CONTRASENA -> "Máximo $LONGITUD_MAXIMA_CONTRASENA caracteres"
+            else -> null
+        }
 
     val errorRepetir: String?
         get() = if (repetirContrasena.isNotEmpty() && repetirContrasena != contrasena) "Las contraseñas no coinciden" else null
@@ -60,7 +65,7 @@ class RegistroViewModel(private val usuarios: UsuarioRepositorio) : ViewModel() 
         viewModelScope.launch {
             val email = actual.email.trim()
             usuarios.registrar(actual.usuario.trim(), email, actual.contrasena)
-                .mapCatching { usuarios.login(email, actual.contrasena).getOrThrow() }
+                .onSuccess { _estado.update { it.copy(cargando = false, correoEnviado = true) } }
                 .onFailure { error ->
                     _estado.update { it.copy(cargando = false, error = error.mensajeParaUsuario()) }
                 }

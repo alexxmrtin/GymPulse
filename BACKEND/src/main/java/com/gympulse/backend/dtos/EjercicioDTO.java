@@ -4,5 +4,6 @@ public record EjercicioDTO(
         Long id,
         String nombre,
         String descripcion,
-        String grupoMuscular) {
+        String grupoMuscular,
+        boolean predefinido) {
 }

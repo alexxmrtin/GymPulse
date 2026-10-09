@@ -14,4 +14,6 @@ public interface SerieRepository extends JpaRepository<Serie, Long> {
 
     // Las series de un ejercicio pero solo las de un usuario: recorre serie -> entrenamiento -> usuario
     List<Serie> findByEjercicioIdAndEntrenamientoUsuarioId(Long ejercicioId, Long usuarioId);
+
+    boolean existsByEjercicioId(Long ejercicioId);
 }
