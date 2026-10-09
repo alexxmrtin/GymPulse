@@ -4,8 +4,6 @@ Aplicación móvil para registrar y seguir entrenamientos de gimnasio: series, p
 ejercicio y constancia semanal. Arquitectura cliente-servidor con una **API REST en Spring Boot**
 y un **cliente nativo Android en Kotlin + Jetpack Compose**.
 
-**Versión 1.0**
-
 ---
 
 ## Índice
